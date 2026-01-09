@@ -1,8 +1,11 @@
 from __future__ import annotations
+import os
+os.environ["QT_API"] = "pyside6"
 
+
+import logging
 import inspect
 import uuid
-import os
 import sys
 import time
 import traceback
@@ -43,6 +46,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+logger = logging.getLogger(__name__)
+
 # =============================================================================
 # 0) Plug your tasks here
 # =============================================================================
@@ -57,6 +62,7 @@ from PySide6.QtWidgets import (
 def demo_task(*, zarr_urls: list[str], zarr_dir: str, sleep_s: float = 0.5) -> dict[str, Any]:
     """Demo task: sleeps a bit and returns the chosen zarr url."""
     time.sleep(max(sleep_s, 0.0))
+    logger.info(f"Demo task: sleeping {sleep_s} seconds")
     return {"zarr_urls": zarr_urls, "zarr_dir": zarr_dir}
 
 
@@ -472,14 +478,11 @@ class WorkflowWindow(QMainWindow):
         self.analysis_dir = analysis_dir
         self.tasks = tasks
         self.tasks_by_key: Dict[str, TaskSpec] = {t.key: t for t in self.tasks}
-        self.task_by_id: Dict[str, TaskSpec] = {} #task_id => task {t.key: t for t in self.tasks}
-        self.params_by_id: dict[str, dict[str, Any]] = {}  # workflow_id -> param values
 
         # workflow ordered task ids
         self.workflow_ids: List[str] = []
-
-        # param widgets: task_key -> param_name -> widget
-        self.param_widgets: Dict[str, Dict[str, QWidget]] = {t.key: build_widgets_from_model(t.model) for t in self.tasks}
+        self.task_by_id: Dict[str, TaskSpec] = {} #task_id => task {t.key: t for t in self.tasks}
+        self.params_by_id: dict[str, dict[str, Any]] = {}  # workflow_id -> param values
 
         # thread/worker
         self.thread: Optional[QThread] = None
@@ -509,21 +512,6 @@ class WorkflowWindow(QMainWindow):
         top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
         top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         main_layout.addWidget(top_label)
-
-        # Zarr selector: scan *.zarr under analysis dir
-        self.zarr_image_combo = QComboBox()
-        self.zarr_image_combo.addItem("Select zarr image…", None)  # placeholder
-        self.zarr_image_combo.addItem("No zarr image (conversion task)", "__NO_ZARR__")
-
-        self.zarr_image_combo.currentIndexChanged.connect(self._on_zarr_image_changed)
-
-        self.refresh_zarr_images_btn = QPushButton("Refresh")
-        self.refresh_zarr_images_btn.clicked.connect(self._populate_images_choices)
-
-        #row = QHBoxLayout()
-        #row.addWidget(QLabel("Zarr Image folder (root and one level down):"))
-        #row.addWidget(self.zarr_image_combo, 1)
-        #main_layout.addLayout(row)
 
         # Panels: Available / Workflow / Parameters
         splitter = QSplitter(Qt.Horizontal)
@@ -585,8 +573,18 @@ class WorkflowWindow(QMainWindow):
         splitter.setSizes([300, 430, 520])
         main_layout.addWidget(splitter, 2)
 
-        # Run/cancel
+        # Run row
         run_row = QHBoxLayout()
+        
+        # Zarr selector: scan *.zarr under analysis dir
+        self.zarr_image_combo = QComboBox()
+        self.zarr_image_combo.addItem("Select zarr image…", None)  # placeholder
+        self.zarr_image_combo.addItem("No zarr image (conversion task)", "__NO_ZARR__")
+        self.zarr_image_combo.currentIndexChanged.connect(self._on_zarr_image_changed)
+        self.refresh_zarr_images_btn = QPushButton("Refresh")
+        self.refresh_zarr_images_btn.clicked.connect(self._populate_images_choices)
+
+        # Run/cancel button
         self.run_btn = QPushButton("Run workflow")
         self.run_btn.clicked.connect(self.run_workflow)
         self.run_btn.setEnabled(False)
@@ -698,7 +696,7 @@ class WorkflowWindow(QMainWindow):
         """
         data = self.zarr_image_combo.currentData()
         valid = (data is not None)  # placeholder None => invalid
-        self.run_btn.setEnabled(valid and len(self.workflow_keys) > 0)
+        self.run_btn.setEnabled(valid and len(self.workflow_ids) > 0)
 
     # --- logging ---
     def append_log(self, msg: str) -> None:
@@ -714,14 +712,14 @@ class WorkflowWindow(QMainWindow):
         self.down_btn.setEnabled(not frozen)
         self.auto_vis_chk.setEnabled(not frozen)
         self.email_to.setEnabled(not frozen)
-        self.zarr_combo.setEnabled(not frozen)
+        self.zarr_image_combo.setEnabled(not frozen)
         self.run_btn.setEnabled(not frozen)
         self.cancel_btn.setEnabled(frozen)
 
         # disable parameter widgets while running
-        for task_key, widgets in self.param_widgets.items():
-            for w in widgets.values():
-                w.setEnabled(not frozen)
+        for name, widget in self.current_param_widgets.items():
+            #for w in widgets.values():
+            widget.setEnabled(not frozen)
 
     # --- workflow building ---
     def add_task(self) -> None:
@@ -749,7 +747,7 @@ class WorkflowWindow(QMainWindow):
         self.append_log(f"Added task: {task.title}")
 
         # Auto-fill common parameters for this task (if present)
-        self._autofill_common_params_for_task(key)
+        #self._autofill_common_params_for_task(task_id)
 
         self._on_zarr_image_changed()
 
@@ -792,11 +790,13 @@ class WorkflowWindow(QMainWindow):
         b_item = self.workflow_list.item(b)
         a_key = a_item.data(Qt.UserRole + 1)
         b_key = b_item.data(Qt.UserRole + 1)
+        a_id = a_item.data(Qt.UserRole)
+        b_id = b_item.data(Qt.UserRole)
         a_text = a_item.text()
         b_text = b_item.text()
 
-        a_item.setText(b_text); a_item.setData(Qt.UserRole + 1, b_key)
-        b_item.setText(a_text); b_item.setData(Qt.UserRole + 1, a_key)
+        a_item.setText(b_text); a_item.setData(Qt.UserRole + 1, b_key); a_item.setData(Qt.UserRole, b_id)
+        b_item.setText(a_text); b_item.setData(Qt.UserRole + 1, a_key); b_item.setData(Qt.UserRole, a_id)
 
         s_a = self.status_list.item(a).text()
         s_b = self.status_list.item(b).text()
@@ -860,6 +860,7 @@ class WorkflowWindow(QMainWindow):
         for name, w in widgets.items():
             if name in saved:
                 self._set_widget_value(w, saved[name])
+        #self.param_widgets[task_id] = widgets
 
         # store current widgets for reading later
         self.current_param_widgets = widgets
@@ -879,19 +880,19 @@ class WorkflowWindow(QMainWindow):
 
         # zarr_dir
         if "zarr_dir" in widgets and isinstance(widgets["zarr_dir"], QLineEdit):
-            widgets["zarr_dir"].setText(str(self.analysis_dir))
+            #widgets["zarr_dir"].setText(str(self.analysis_dir))
             widgets["zarr_dir"].setEnabled(False)
         
         if "zarr_url" in widgets and isinstance(widgets["zarr_url"], QLineEdit):
-            widgets["zarr_url"].setText(chosen_zarr_image)
+            #widgets["zarr_url"].setText(chosen_zarr_image)
             widgets["zarr_url"].setEnabled(False)
 
         # zarr_urls (list[str]) shown as QTextEdit
         if "zarr_urls" in widgets and isinstance(widgets["zarr_urls"], QTextEdit):
-            widgets["zarr_urls"].setPlainText(chosen_zarr_image)
+            #widgets["zarr_urls"].setPlainText(chosen_zarr_image)
             widgets["zarr_urls"].setEnabled(False)
 
-    def collect_params_model_for_id(self, row: int, task_id: int) -> BaseModel:
+    def collect_params_model_for_row(self, row: int) -> BaseModel:
         task_id = self.workflow_ids[row]
         task = self.task_by_id[task_id]
 
@@ -923,7 +924,7 @@ class WorkflowWindow(QMainWindow):
 
         plan = []
         for row in range(len(self.workflow_ids)):
-            params_model = self.collect_params_model_for_row(row)  # or collect_params_model(row)
+            params_model = self.collect_params_model_for_row(row)
             plan.append((self.task_by_id[self.workflow_ids[row]], params_model))
         return plan
 
@@ -935,13 +936,13 @@ class WorkflowWindow(QMainWindow):
 
     # --- run/cancel ---
     def run_workflow(self) -> None:
-        if not self.workflow_keys:
+        if not self.workflow_ids:
             QMessageBox.information(self, "No workflow", "Add at least one task to the workflow.")
             return
 
         # refresh autofill for tasks that use zarr_urls/zarr_dir
-        for key in self.workflow_keys:
-            self._autofill_common_params_for_task(key)
+        #for task_id in self.workflow_ids:
+        #    self._autofill_common_params_for_task(task_id)
 
         try:
             plan = self.build_plan()
