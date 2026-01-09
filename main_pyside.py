@@ -757,8 +757,9 @@ class WorkflowWindow(QMainWindow):
             return
         item = self.workflow_list.takeItem(row)
         task_id = item.data(Qt.UserRole)
-        del self.workflow_ids[task_id]
         del self.params_by_id[task_id]
+        del self.task_by_id[task_id]
+        del self.workflow_ids[row]
         del item
 
         s_item = self.status_list.takeItem(row)
@@ -939,6 +940,10 @@ class WorkflowWindow(QMainWindow):
         if not self.workflow_ids:
             QMessageBox.information(self, "No workflow", "Add at least one task to the workflow.")
             return
+        
+        if self.thread is not None and self.thread.isRunning():
+            QMessageBox.information(self, "Busy", "A workflow is still running.")
+            return
 
         # refresh autofill for tasks that use zarr_urls/zarr_dir
         #for task_id in self.workflow_ids:
@@ -965,7 +970,7 @@ class WorkflowWindow(QMainWindow):
             )
             email_cfg = EmailConfig(False, "", "", 587, "", "")
 
-        self.thread = QThread(self)
+        self.thread = QThread()
         self.worker = WorkflowWorker(
             analysis_dir=self.analysis_dir,
             plan=plan,
@@ -981,9 +986,9 @@ class WorkflowWindow(QMainWindow):
         self.worker.finished.connect(self.on_finished)
 
         # cleanup
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
+        #self.worker.finished.connect(self.thread.quit)
+        #self.worker.finished.connect(self.worker.deleteLater)
+        #self.thread.finished.connect(self.thread.deleteLater)
 
         self.thread.start()
 
@@ -1012,6 +1017,18 @@ class WorkflowWindow(QMainWindow):
 
         self.append_log(f"Workflow finished: {msg}")
         self.freeze_ui(False)
+
+        t = self.thread
+        w = self.worker
+
+        if t is not None:
+            if t.isRunning():
+                t.quit()
+                t.wait()
+            t.deleteLater()
+
+        if w is not None:
+            w.deleteLater()
 
         self.thread = None
         self.worker = None
