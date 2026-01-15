@@ -1,8 +1,7 @@
 from __future__ import annotations
 import os
 os.environ["QT_API"] = "pyside6"
-
-
+import re
 import logging
 import inspect
 import uuid
@@ -15,9 +14,18 @@ from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
-from skinnervation3d_fractal_tasks.tasks import fit_surface, count_number_fiber_crossing
+from skinnervation3d_fractal_tasks.tasks import (fit_surface,
+                                                 segment_fibers,
+                                                 analyse_fiber_plexus,
+                                                 compute_fiber_density_per_structure,
+                                                 count_number_fiber_crossing)
+from mesospim_fractal_tasks.tasks import (crop_regions_of_interest,
+                                          correct_flatfield,
+                                          correct_illumination,
+                                          stitch_with_multiview_stitcher, 
+                                          mesospim_to_omezarr)
 
-from pydantic import BaseModel, Field, ValidationError, create_model
+from pydantic import BaseModel, Field, ValidationError, create_model, TypeAdapter
 
 from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import (
@@ -49,15 +57,8 @@ from PySide6.QtWidgets import (
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# 0) Plug your tasks here
+# 0) Tasks definition
 # =============================================================================
-#
-# For now, I include a tiny demo task and show how to register your
-# init_correct_illumination once it’s importable in this environment.
-#
-# Replace the DEMO task(s) with imports like:
-#   from your_pkg.init_correct_illumination import init_correct_illumination
-#
 
 def demo_task(*, zarr_urls: list[str], zarr_dir: str, sleep_s: float = 0.5) -> dict[str, Any]:
     """Demo task: sleeps a bit and returns the chosen zarr url."""
@@ -65,15 +66,18 @@ def demo_task(*, zarr_urls: list[str], zarr_dir: str, sleep_s: float = 0.5) -> d
     logger.info(f"Demo task: sleeping {sleep_s} seconds")
     return {"zarr_urls": zarr_urls, "zarr_dir": zarr_dir}
 
-
-# Example: once you can import your task, register it like this:
-# from your_module import init_correct_illumination
-
 TASK_FUNCTIONS: List[Callable[..., Any]] = [
     demo_task,
+    mesospim_to_omezarr.mesospim_to_omezarr,
+    crop_regions_of_interest.crop_regions_of_interest,
+    correct_flatfield.correct_flatfield,
+    correct_illumination.correct_illumination,
+    stitch_with_multiview_stitcher.stitch_with_multiview_stitcher,
     fit_surface.fit_surface,
+    segment_fibers.segment_fibers,
     count_number_fiber_crossing.count_number_fiber_crossing,
-    # init_correct_illumination,
+    compute_fiber_density_per_structure.compute_fiber_density_per_structure,
+    analyse_fiber_plexus.analyse_fiber_plexus,
 ]
 
 HIDDEN_WORKFLOW_FIELDS = {"zarr_dir", "zarr_url", "zarr_urls"}
@@ -146,11 +150,16 @@ class TaskSpec:
     fn: Callable[..., Any]
     model: Type[BaseModel]  # auto-generated from fn signature
 
-
 def _safe_doc_firstline(fn: Callable[..., Any]) -> str:
     doc = inspect.getdoc(fn) or ""
-    return doc.splitlines()[0] if doc else ""
-
+    if doc:
+        doc_lines = doc.split("\n")
+        l = 0
+        while (not doc_lines[l].startswith("Parameters")) and (l < len(doc_lines)):
+            l += 1
+        return "\n".join(doc_lines[:l])
+    else:
+        return ""
 
 def build_model_from_signature(fn: Callable[..., Any]) -> Type[BaseModel]:
     """
@@ -199,102 +208,227 @@ def build_task_specs(fns: List[Callable[..., Any]]) -> List[TaskSpec]:
 
 TASKS: List[TaskSpec] = build_task_specs(TASK_FUNCTIONS)
 
+# =============================================================================
+# 3) Pydantic type-to-widget helper class
+# =============================================================================
+
+class OptionalWrapperWidget(QWidget):
+    """
+    Wraps an editor widget with an 'Enabled' checkbox.
+    If unchecked => value() returns None and editor is disabled.
+    """
+    def __init__(self, inner: QWidget, default_is_none: bool, parent=None):
+        super().__init__(parent)
+        self.inner = inner
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.chk = QCheckBox("Set value")
+        
+        # If default is None, start disabled; otherwise enabled.
+        self.chk.setChecked(not default_is_none)
+        layout.addWidget(self.chk)
+        layout.addWidget(self.inner)
+
+        self.inner.setVisible(self.chk.isChecked())
+        self.chk.toggled.connect(lambda checked: self.inner.setVisible(checked))
+
+    def is_enabled(self) -> bool:
+        return self.chk.isChecked()
+    
+
+class TupleWidget(QWidget):
+    """
+    Fixed-length tuple editor: tuple[T1, T2, ...]
+    """
+    def __init__(self, tuple_type: Any, default: Any = None, parent=None):
+        super().__init__(parent)
+        self.tuple_type = tuple_type
+        self.item_types = list(get_args(tuple_type))
+        self.widgets: list[QWidget] = []
+
+        layout = QFormLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        default_items = list(default) if isinstance(default, (tuple, list)) else [None] * len(self.item_types)
+
+        for i, t in enumerate(self.item_types):
+            w = build_leaf_widget(t, default_items[i] if i < len(default_items) else None)
+            self.widgets.append(w)
+            layout.addRow(w)
+
+    def value(self) -> tuple:
+        out = []
+        for w, t in zip(self.widgets, self.item_types):
+            raw = read_leaf_widget_value(w, t)
+            try:
+                v = TypeAdapter(t).validate_python(raw)
+            except ValidationError as e:
+                raise ValueError(f"Invalid tuple element ({t}): {e}") from e
+            out.append(v)
+        return tuple(out)
+    
+
+class ListWidget(QWidget):
+    """
+    list[T] editor:
+    - append tokens (split by separators)
+    - clear list
+    - optional reorder by drag & drop
+    """
+    def __init__(self, list_type: Any, default: Any = None, allow_reorder: bool = True, parent=None):
+        super().__init__(parent)
+        self.list_type = list_type
+        (self.item_type,) = get_args(list_type)
+
+        self._items: list[Any] = list(default) if isinstance(default, list) else []
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+
+        root.addWidget(QLabel("Items:"))
+
+        self.view = QListWidget()
+        self.view.setSelectionMode(QListWidget.ExtendedSelection)
+
+        if allow_reorder:
+            # Built-in Qt reorder (drag within list)
+            self.view.setDragDropMode(QListWidget.InternalMove)
+            self.view.setDefaultDropAction(Qt.MoveAction)
+        else:
+            self.view.setDragDropMode(QListWidget.NoDragDrop)
+
+        root.addWidget(self.view)
+
+        row = QHBoxLayout()
+        self.input = QLineEdit()
+        self.input.setPlaceholderText("Append… (separators: space, comma, ;, /, |, ' - ')")
+        row.addWidget(self.input)
+
+        self.btn_append = QPushButton("Append")
+        self.btn_clear = QPushButton("Clear")
+        row.addWidget(self.btn_append)
+        row.addWidget(self.btn_clear)
+        root.addLayout(row)
+
+        self.btn_append.clicked.connect(self._on_append)
+        self.btn_clear.clicked.connect(self._on_clear)
+
+        self._refresh_from_items()
+
+    def _refresh_from_items(self):
+        self.view.clear()
+        for it in self._items:
+            self.view.addItem(QListWidgetItem(str(it)))
+
+    def _sync_items_from_view(self):
+        # If reorder is enabled, reflect current GUI order back into _items
+        current = []
+        for i in range(self.view.count()):
+            current.append(self.view.item(i).data(Qt.UserRole))
+        self._items = current
+
+    def _on_clear(self):
+        self._items = []
+        self._refresh_from_items()
+
+    def _on_append(self):
+        text = self.input.text()
+        tokens = split_tokens(text)
+        if not tokens:
+            return
+
+        new_vals = []
+        for tok in tokens:
+            try:
+                v = TypeAdapter(self.item_type).validate_python(tok)
+            except ValidationError as e:
+                raise ValueError(f"Invalid list item ({self.item_type}): {tok!r}. {e}") from e
+            new_vals.append(v)
+
+        self._items.extend(new_vals)
+        self.input.clear()
+        self._refresh_from_items()
+        # Store typed values in item UserRole for robust re-sync after reorder:
+        for i, v in enumerate(self._items):
+            self.view.item(i).setData(Qt.UserRole, v)
+
+    def value(self) -> list[Any]:
+        # If reorder is enabled, read current order from view
+        if self.view.dragDropMode() == QListWidget.InternalMove:
+            self._sync_items_from_view()
+
+        # Validate whole list
+        try:
+            return TypeAdapter(self.list_type).validate_python(self._items)
+        except ValidationError as e:
+            raise ValueError(f"Invalid list value: {e}") from e
+
 
 # =============================================================================
 # 3) Pydantic -> widgets (basic types)
 # =============================================================================
 
-def _unwrap_optional(tp: Any) -> Any:
+def is_optional(tp: Any) -> bool:
     origin = get_origin(tp)
-    if origin is Union:
-        args = [a for a in get_args(tp) if a is not type(None)]
-        if len(args) == 1:
-            return args[0]
+    return origin is Union and type(None) in get_args(tp)
+
+def unwrap_optional(tp: Any) -> Any:
+    if is_optional(tp):
+        return next(a for a in get_args(tp) if a is not type(None))
     return tp
 
+def is_tuple_type(tp: Any) -> bool:
+    tp = unwrap_optional(tp)
+    return get_origin(tp) is tuple
 
-def build_widgets_from_model(model_cls: Type[BaseModel]) -> Dict[str, QWidget]:
-    """
-    Supports: int, float, bool, str, list[str] (nice for zarr_urls).
-    """
-    widgets: Dict[str, QWidget] = {}
+def is_list_type(tp: Any) -> bool:
+    tp = unwrap_optional(tp)
+    return get_origin(tp) is list
 
-    for name, field in model_cls.model_fields.items():
-        if name in HIDDEN_WORKFLOW_FIELDS:
-            continue
-        ann = _unwrap_optional(field.annotation)
-        default = field.default
-        desc = field.description or ""
-
-        # list[str] support (simple comma/newline separated input)
-        if get_origin(ann) is list and (get_args(ann) == (str,) or get_args(ann) == (Any,)):
-            w = QTextEdit()
-            w.setFixedHeight(70)
-            if default not in (None, ...):
-                if isinstance(default, list):
-                    w.setPlainText("\n".join(map(str, default)))
-                else:
-                    w.setPlainText(str(default))
-            if desc:
-                w.setToolTip(desc)
-            widgets[name] = w
-            continue
-
-        if ann is int:
-            w = QSpinBox()
-            # You can add constraints later if you use Field(ge/le)
-            if default not in (None, ...):
-                w.setValue(int(default))
-
-        elif ann is float:
-            w = QDoubleSpinBox()
-            w.setDecimals(6)
-            if default not in (None, ...):
-                w.setValue(float(default))
-
-        elif ann is bool:
-            w = QCheckBox()
-            if default not in (None, ...):
-                w.setChecked(bool(default))
-
-        elif ann is str:
-            w = QLineEdit()
-            if default not in (None, ...):
-                w.setText(str(default))
-
-        else:
-            # Fallback: text input
-            w = QLineEdit()
-            if default not in (None, ...):
-                w.setText(str(default))
-            w.setPlaceholderText(f"Unsupported type {ann!r} → treated as text")
-
-        if desc:
-            w.setToolTip(desc)
-
-        # Make workflow-scoped fields read-only in the UI
-        if name in {"zarr_dir", "zarr_url", "zarr_urls"}:
-            w.setEnabled(False)
-        widgets[name] = w
-
-    return widgets
+def split_tokens(text: str) -> list[str]:
+    text = text.strip()
+    if not text:
+        return []
+    
+    SEP_PATTERN = re.compile(
+        r"""
+        [,\s;/|]+            # comma, whitespace, semicolon, slash, pipe 
+        """, re.VERBOSE)
+    
+    parts = SEP_PATTERN.split(text)
+    return [p for p in (x.strip() for x in parts) if p]
 
 
-def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
-    # list[str] text area
-    if isinstance(widget, QTextEdit):
-        txt = widget.toPlainText().strip()
-        if not txt:
-            return []
-        # allow newline or comma separation
-        parts = []
-        for line in txt.splitlines():
-            for chunk in line.split(","):
-                chunk = chunk.strip()
-                if chunk:
-                    parts.append(chunk)
-        return parts
+def build_leaf_widget(tp: Any, default: Any = None) -> QWidget:
+    if tp is int:
+        w = QSpinBox()
+        w.setRange(-2_147_483_648, 2_147_483_647) 
+        if default not in (None, ...):
+            w.setValue(int(default))
+        return w
 
+    if tp is float:
+        w = QDoubleSpinBox()
+        w.setDecimals(6)
+        if default not in (None, ...):
+            w.setValue(float(default))
+        return w
+
+    if tp is bool:
+        w = QCheckBox()
+        if default not in (None, ...):
+            w.setChecked(bool(default))
+        return w
+
+    # fallback string
+    w = QLineEdit()
+    if default not in (None, ...):
+        w.setText(str(default))
+    return w
+
+def read_leaf_widget_value(widget: QWidget, expected_type: Any) -> Any:
     if isinstance(widget, QSpinBox):
         return int(widget.value())
     if isinstance(widget, QDoubleSpinBox):
@@ -303,8 +437,86 @@ def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
         return bool(widget.isChecked())
     if isinstance(widget, QLineEdit):
         return widget.text()
-    raise TypeError(f"Unsupported widget: {type(widget)}")
 
+    raise TypeError(f"Unsupported leaf widget: {type(widget)}")
+
+def build_widgets_from_model(model_cls: type[BaseModel]) -> dict[str, QWidget]:
+    widgets: dict[str, QWidget] = {}
+
+    for name, field in model_cls.model_fields.items():
+        if name in HIDDEN_WORKFLOW_FIELDS:
+            continue
+
+        ann_full = field.annotation
+        opt = is_optional(ann_full)
+        ann = unwrap_optional(ann_full)
+
+        default = field.default
+        desc = field.description or ""
+
+        # Build the "inner" editor first
+        if is_tuple_type(ann_full):
+            inner = TupleWidget(ann, default=default)
+        elif is_list_type(ann_full):
+            inner = ListWidget(ann, default=default if isinstance(default, list) else [], allow_reorder=True)
+        else:
+            inner = build_leaf_widget(ann, default=default)
+
+        # Wrap optional
+        if opt:
+            inner = OptionalWrapperWidget(inner, default_is_none=(default is None))
+
+        if desc:
+            inner.setToolTip(desc)
+
+        if name in {"zarr_dir", "zarr_url", "zarr_urls"}:
+            inner.setEnabled(False)
+
+        widgets[name] = inner
+
+    return widgets
+
+def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
+    opt = is_optional(expected_type)
+    base = unwrap_optional(expected_type)
+
+    # Optional wrapper
+    if isinstance(widget, OptionalWrapperWidget):
+        if not widget.is_enabled():
+            return None
+        widget = widget.inner  # unwrap and continue
+
+    # Tuple/list containers
+    if isinstance(widget, TupleWidget):
+        return widget.value()
+
+    if isinstance(widget, ListWidget):
+        return widget.value()
+
+    # Leaf
+    raw = read_leaf_widget_value(widget, base)
+    # Validate/coerce via pydantic
+    try:
+        return TypeAdapter(base).validate_python(raw)
+    except ValidationError as e:
+        raise ValueError(f"Invalid value for {base}: {e}") from e
+
+
+# =============================================================================
+# 4) Redirect stdout logging
+# =============================================================================
+
+class QtLogHandler(logging.Handler):
+    def __init__(self, emit_fn):
+        super().__init__()
+        self._emit_fn = emit_fn
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+        except Exception:
+            msg = record.getMessage()
+        self._emit_fn(msg)
 
 # =============================================================================
 # 4) Worker: runs tasks sequentially, frozen UI, logs, status, optional email, optional visualize
@@ -341,6 +553,36 @@ class WorkflowWorker(QObject):
 
     @Slot()
     def run(self) -> None:
+        root = logging.getLogger()
+        
+        # --- install GUI logging handler ---
+        handler = QtLogHandler(self.log.emit)
+        handler.setLevel(logging.WARNING)
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+        )
+
+        old_level = root.level
+        root.setLevel(logging.WARNING)
+
+        old_handlers = list(root.handlers)
+        removed = []
+        for h in old_handlers:
+            if isinstance(h, logging.StreamHandler):
+                removed.append(h)
+                root.removeHandler(h)
+        
+        root.addHandler(handler)
+
+        try:
+            self._run_workflow()
+        finally:
+            root.removeHandler(handler)
+            for h in removed:
+                root.addHandler(h)
+            root.setLevel(old_level)
+
+    def _run_workflow(self) -> None:
         total = len(self.plan)
         ok = True
         final = "Success"
@@ -488,22 +730,6 @@ class WorkflowWindow(QMainWindow):
         self.thread: Optional[QThread] = None
         self.worker: Optional[WorkflowWorker] = None
 
-        # toolbar: auto visualize + email
-        tb = QToolBar("Main")
-        self.addToolBar(tb)
-
-        self.auto_vis_chk = QCheckBox("Auto-visualize at end")
-        self.auto_vis_chk.setChecked(False)
-        tb.addWidget(self.auto_vis_chk)
-
-        tb.addSeparator()
-
-        tb.addWidget(QLabel("Email to:"))
-        self.email_to = QLineEdit()
-        self.email_to.setPlaceholderText("optional@example.org")
-        self.email_to.setFixedWidth(240)
-        tb.addWidget(self.email_to)
-
         # central UI
         central = QWidget()
         self.setCentralWidget(central)
@@ -597,9 +823,32 @@ class WorkflowWindow(QMainWindow):
         run_row.addWidget(self.refresh_zarr_images_btn)
         run_row.addSpacing(12)        
         run_row.addWidget(self.run_btn)
+        run_row.addSpacing(12)
         run_row.addWidget(self.cancel_btn)
+        run_row.addSpacing(12)
+
+        self.auto_vis_chk = QCheckBox("Auto-visualize at end")
+        self.auto_vis_chk.setChecked(False)
+        run_row.addWidget(self.auto_vis_chk)
+        run_row.addSpacing(12)
+
+        run_row.addWidget(QLabel("Email to:"))
+        self.email_to = QLineEdit()
+        self.email_to.setPlaceholderText("optional@example.org")
+        self.email_to.setFixedWidth(240)
+        run_row.addWidget(self.email_to)
         run_row.addStretch(1)
+
+
         main_layout.addLayout(run_row)
+
+        # toolbar: auto visualize + email
+        #tb = QToolBar("Main")
+        #self.addToolBar(tb)
+
+        #tb.addSeparator()
+
+
 
         # bottom: status + logs
         bottom_split = QSplitter(Qt.Horizontal)
@@ -758,7 +1007,6 @@ class WorkflowWindow(QMainWindow):
         item = self.workflow_list.takeItem(row)
         task_id = item.data(Qt.UserRole)
         del self.params_by_id[task_id]
-        del self.task_by_id[task_id]
         del self.workflow_ids[row]
         del item
 
@@ -767,6 +1015,7 @@ class WorkflowWindow(QMainWindow):
 
         self.append_log(f"Removed task: {self.task_by_id[task_id].title}")
         self.clear_params_form()
+        del self.task_by_id[task_id]
 
         self._on_zarr_image_changed()
 
@@ -980,7 +1229,7 @@ class WorkflowWindow(QMainWindow):
         self.worker.moveToThread(self.thread)
 
         self.thread.started.connect(self.worker.run)
-        self.worker.log.connect(self.append_log)
+        self.worker.log.connect(self.append_log, Qt.QueuedConnection)
         self.worker.task_started.connect(self.on_task_started)
         self.worker.task_finished.connect(self.on_task_finished)
         self.worker.finished.connect(self.on_finished)
