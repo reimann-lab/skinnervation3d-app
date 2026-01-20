@@ -136,6 +136,67 @@ def send_email(cfg: EmailConfig, subject: str, body: str) -> None:
                 s.login(cfg.smtp_user, cfg.smtp_password)
             s.send_message(msg)
 
+# =============================================================================
+# 2) TaskSpec: auto model from function signature
+# =============================================================================
+
+import os
+import sys
+import subprocess
+from pathlib import Path
+
+def launch_napari_in_conda_env(*, analysis_dir: Path, zarr_path: str | None, env_name: str) -> None:
+    # Build a minimal Python snippet so we don't depend on shell quoting too much.
+    # Napari can accept a path argument directly, but here we do it explicitly.
+    py = r"""
+            import sys
+            import napari
+
+            viewer = napari.Viewer()
+            path = sys.argv[1] if len(sys.argv) > 1 else ""
+            if path:
+                # napari will guess reader plugins. For zarr OME-NGFF, napari-ome-zarr helps.
+                viewer.open(path)
+            napari.run()
+        """
+    child_env = os.environ.copy()
+    child_env.pop("QT_API", None)
+    args = ["conda", "run", "-n", env_name, "napari"]#"python", "-c", py]
+    if zarr_path:
+        args.append(str(zarr_path))
+
+    # start without blocking your GUI
+    subprocess.Popen(
+        args,
+        cwd=str(analysis_dir),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=(os.name != "nt"),
+        env=child_env,
+    )
+
+import datetime
+def launch_napari_debug(zarr_path: str | None, env_name: str, analysis_dir: Path) -> Path:
+    log_path = analysis_dir / f"napari_launch_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    cmd = ["conda", "run", "-n", env_name, "napari"]
+    child_env = os.environ.copy()
+    child_env.pop("QT_API", None)
+    if zarr_path:
+        cmd.append(zarr_path)
+
+    with log_path.open("w") as f:
+        f.write("CMD: " + " ".join(cmd) + "\n\n")
+        p = subprocess.Popen(
+            cmd,
+            cwd=str(analysis_dir),
+            stdout=f,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env=child_env
+        )
+        f.write(f"\nSpawned PID: {p.pid}\n")
+    return log_path
+
 
 # =============================================================================
 # 2) TaskSpec: auto model from function signature
@@ -746,6 +807,55 @@ class WorkflowWorker(QObject):
             return None
         return None
 
+class AppController:
+    def __init__(self, tasks):
+        self.tasks = tasks
+        self.workflow_win: Optional[WorkflowWindow] = None
+
+    def start(self) -> None:
+        self._show_opening_dialog()
+
+    def _show_opening_dialog(self) -> None:
+        welcome = OpeningDialog()
+        chosen_dir: Optional[Path] = None
+
+        def on_dir_selected(p: Path) -> None:
+            nonlocal chosen_dir
+            chosen_dir = p
+
+        welcome.dir_selected.connect(on_dir_selected)
+        
+        if welcome.exec() != QDialog.Accepted or chosen_dir is None:
+            return  # user cancelled -> quit app 
+
+        self._show_workflow_window(chosen_dir)
+
+    def _show_workflow_window(self, analysis_dir: Path):
+        if self.workflow_win is not None:
+            self.workflow_win.close()
+            self.workflow_win.deleteLater()
+            self.workflow_win = None
+
+        win = WorkflowWindow(analysis_dir=analysis_dir, tasks=self.tasks)
+        win.request_change_analysis_dir.connect(self._on_change_analysis_dir)
+        win.request_open_napari.connect(self._on_open_napari)
+        win.show()
+        self.workflow_win = win
+
+    def _on_change_analysis_dir(self):
+        # close workflow and go back to opening dialog
+        if self.workflow_win is not None:
+            self.workflow_win.close()
+            self.workflow_win.deleteLater()
+            self.workflow_win = None
+        self._show_opening_dialog()
+
+    def _on_open_napari(self, analysis_dir: Path, selected_zarr: str | None):
+        launch_napari_debug(
+            analysis_dir=analysis_dir,
+            zarr_path=selected_zarr,
+            env_name="napari-crop",  # set yours
+        )
 
 # =============================================================================
 # 5) Opening dialog: choose analysis directory → open workflow window
@@ -828,6 +938,10 @@ class OpeningDialog(QDialog):
 # =============================================================================
 
 class WorkflowWindow(QMainWindow):
+
+    request_change_analysis_dir = Signal()          # ask app to go back to opening dialog
+    request_open_napari = Signal(object, object)
+
     def __init__(self, analysis_dir: Path, tasks: List[TaskSpec]):
         super().__init__()
         self.setWindowTitle("Workflow Runner — Workflow")
@@ -855,9 +969,23 @@ class WorkflowWindow(QMainWindow):
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
 
-        top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
-        top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        main_layout.addWidget(top_label)
+        top_row = QHBoxLayout()
+        self.top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
+        self.top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        top_row.addWidget(self.top_label, 1)
+
+        self.change_dir_btn = QPushButton("Change analysis directory…")
+        self.change_dir_btn.clicked.connect(self._on_change_dir_clicked)
+        top_row.addWidget(self.change_dir_btn)
+
+        self.crop_napari_btn = QPushButton("Crop image in napari…")
+        self.crop_napari_btn.clicked.connect(self._on_crop_in_napari_clicked)
+        top_row.addWidget(self.crop_napari_btn)
+
+        main_layout.addLayout(top_row)
+        #top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
+        #top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        #main_layout.addWidget(top_label)
 
 
 
@@ -904,7 +1032,7 @@ class WorkflowWindow(QMainWindow):
 
         # right: params
         right_box = QGroupBox("Parameters")
-        _set_title_stylesheet(right_box)
+        self._set_title_stylesheet(right_box)
         right_layout = QVBoxLayout(right_box)
 
         self.params_title = QLabel("Select a workflow task to edit parameters.")
@@ -1012,6 +1140,50 @@ class WorkflowWindow(QMainWindow):
                 font-weight: bold;
             }
             """)
+        
+    def _on_change_dir_clicked(self) -> None:
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setWindowTitle("Change analysis directory?")
+        msg.setText("Changing the analysis directory will close this workflow window.")
+        msg.setInformativeText("Any current workflow setup and parameters will be lost.")
+        msg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
+        msg.setDefaultButton(QMessageBox.Cancel)
+
+        if msg.exec() != QMessageBox.Ok:
+            return
+
+        # If a workflow is running, cancel first (optional but recommended)
+        if getattr(self, "worker", None) is not None:
+            # reuse your existing cancel logic
+            try:
+                self.cancel_workflow()
+            except Exception:
+                pass
+
+        self.request_change_analysis_dir.emit()
+
+    def _on_crop_in_napari_clicked(self) -> None:
+        # determine currently selected image choice
+        data = self.zarr_image_combo.currentData()  # you already store None / "__NO_ZARR__" / str
+        selected = None if (data in (None, "__NO_ZARR__")) else str(data)
+
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle("Open napari?")
+        if selected:
+            msg.setText("Napari will open in a new window.")
+            msg.setInformativeText(f"It will try to open:\n{selected}")
+        else:
+            msg.setText("Napari will open in a new window.")
+            msg.setInformativeText("No dataset is selected. Napari will open empty.")
+        msg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
+        msg.setDefaultButton(QMessageBox.Ok)
+
+        if msg.exec() != QMessageBox.Ok:
+            return
+
+        self.request_open_napari.emit(self.analysis_dir, selected)
 
     # --- zarr discovery ---
     def _discover_zarr_images(self, root: Path) -> List[Path]:
@@ -1427,20 +1599,13 @@ class WorkflowWindow(QMainWindow):
 def main() -> None:
     app = QApplication(sys.argv)
 
-    welcome = OpeningDialog()
-    chosen_dir: Optional[Path] = None
+    controller = AppController(TASKS)
+    controller.start()
 
-    def on_dir_selected(p: Path) -> None:
-        nonlocal chosen_dir
-        chosen_dir = p
-
-    welcome.dir_selected.connect(on_dir_selected)
-
-    if welcome.exec() != QDialog.Accepted or chosen_dir is None:
+    # If user cancelled in the opening dialog, no window will be shown.
+    # Exit cleanly.
+    if QApplication.topLevelWidgets() == []:
         return
-
-    win = WorkflowWindow(chosen_dir, TASKS)
-    win.show()
 
     sys.exit(app.exec())
 
