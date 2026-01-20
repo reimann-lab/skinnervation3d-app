@@ -13,19 +13,19 @@ import subprocess
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin, get_type_hints
 from skinnervation3d_fractal_tasks.tasks import (fit_surface,
                                                  segment_fibers,
                                                  analyse_fiber_plexus,
                                                  compute_fiber_density_per_structure,
                                                  count_number_fiber_crossing)
-from mesospim_fractal_tasks.tasks import (crop_regions_of_interest,
-                                          correct_flatfield,
-                                          correct_illumination,
+from mesospim_fractal_tasks.tasks import (crop_regions_of_interest_dask,
+                                          correct_flatfield_dask,
+                                          correct_illumination_dask,
                                           stitch_with_multiview_stitcher, 
                                           mesospim_to_omezarr)
 
-from pydantic import BaseModel, Field, ValidationError, create_model, TypeAdapter
+from pydantic import BaseModel, ValidationError, create_model, TypeAdapter
 
 from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import (
@@ -49,7 +49,6 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QSplitter,
     QTextEdit,
-    QToolBar,
     QVBoxLayout,
     QWidget,
 )
@@ -69,9 +68,9 @@ def demo_task(*, zarr_urls: list[str], zarr_dir: str, sleep_s: float = 0.5) -> d
 TASK_FUNCTIONS: List[Callable[..., Any]] = [
     demo_task,
     mesospim_to_omezarr.mesospim_to_omezarr,
-    crop_regions_of_interest.crop_regions_of_interest,
-    correct_flatfield.correct_flatfield,
-    correct_illumination.correct_illumination,
+    crop_regions_of_interest_dask.crop_regions_of_interest,
+    correct_flatfield_dask.correct_flatfield,
+    correct_illumination_dask.correct_illumination,
     stitch_with_multiview_stitcher.stitch_with_multiview_stitcher,
     fit_surface.fit_surface,
     segment_fibers.segment_fibers,
@@ -155,7 +154,7 @@ def _safe_doc_firstline(fn: Callable[..., Any]) -> str:
     if doc:
         doc_lines = doc.split("\n")
         l = 0
-        while (not doc_lines[l].startswith("Parameters")) and (l < len(doc_lines)):
+        while (l < len(doc_lines)) and (not doc_lines[l].startswith("Parameters")):
             l += 1
         return "\n".join(doc_lines[:l])
     else:
@@ -169,7 +168,8 @@ def build_model_from_signature(fn: Callable[..., Any]) -> Type[BaseModel]:
       - keyword-only args are included normally
     """
     sig = inspect.signature(fn)
-    type_hints = getattr(fn, "__annotations__", {})
+    #type_hints = getattr(fn, "__annotations__", {})
+    type_hints = get_type_hints(fn, include_extras=True)
 
     fields: Dict[str, Tuple[Any, Any]] = {}
 
@@ -350,6 +350,7 @@ class ListWidget(QWidget):
         self._items.extend(new_vals)
         self.input.clear()
         self._refresh_from_items()
+        
         # Store typed values in item UserRole for robust re-sync after reorder:
         for i, v in enumerate(self._items):
             self.view.item(i).setData(Qt.UserRole, v)
@@ -364,6 +365,55 @@ class ListWidget(QWidget):
             return TypeAdapter(self.list_type).validate_python(self._items)
         except ValidationError as e:
             raise ValueError(f"Invalid list value: {e}") from e
+        
+
+class CustomModelWidget(QWidget):
+    """
+    GUI for a nested Pydantic BaseModel.
+    """
+    def __init__(
+        self, 
+        model_cls: type[BaseModel], 
+        default: Any = None, 
+        parent=None
+    ):
+        super().__init__(parent)
+        self.model_cls = model_cls
+
+        # default can be None, dict, or BaseModel instance
+        if isinstance(default, BaseModel):
+            default_dict = default.model_dump()
+        elif isinstance(default, dict):
+            default_dict = default
+        else:
+            default_dict = {}
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        self.group = QGroupBox()
+        outer.addWidget(self.group)
+
+        self.widgets = build_widgets_from_model(model_cls, default_dict)
+
+        form = QFormLayout(self.group)
+        form.setContentsMargins(8, 8, 8, 8)
+        for fname, w in self.widgets.items():
+            form.addRow(fname, w)
+
+    def value_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for fname, w in self.widgets.items():
+            ftype = self.model_cls.model_fields[fname].annotation
+            out[fname] = read_widget_value(w, ftype)
+        return out
+
+    def value_model(self) -> BaseModel:
+        data = self.value_dict()
+        try:
+            return TypeAdapter(self.model_cls).validate_python(data)
+        except ValidationError as e:
+            raise ValueError(f"Invalid {self.model_cls.__name__}: {e}") from e
 
 
 # =============================================================================
@@ -400,6 +450,12 @@ def split_tokens(text: str) -> list[str]:
     parts = SEP_PATTERN.split(text)
     return [p for p in (x.strip() for x in parts) if p]
 
+def is_pydantic_model_type(tp: Any) -> bool:
+    tp = unwrap_optional(tp)
+    try:
+        return isinstance(tp, type) and issubclass(tp, BaseModel)
+    except TypeError:
+        return False
 
 def build_leaf_widget(tp: Any, default: Any = None) -> QWidget:
     if tp is int:
@@ -436,11 +492,20 @@ def read_leaf_widget_value(widget: QWidget, expected_type: Any) -> Any:
     if isinstance(widget, QCheckBox):
         return bool(widget.isChecked())
     if isinstance(widget, QLineEdit):
-        return widget.text()
+        txt = widget.text().strip()
+        #opt = is_optional(expected_type)
+        #if opt and txt == "":
+        #    return None
+        return txt
 
     raise TypeError(f"Unsupported leaf widget: {type(widget)}")
 
-def build_widgets_from_model(model_cls: type[BaseModel]) -> dict[str, QWidget]:
+def build_widgets_from_model(
+    model_cls: type[BaseModel],
+    defaults: dict[str, Any] | None = None
+) -> dict[str, QWidget]:
+    
+    defaults = defaults or {}
     widgets: dict[str, QWidget] = {}
 
     for name, field in model_cls.model_fields.items():
@@ -451,14 +516,27 @@ def build_widgets_from_model(model_cls: type[BaseModel]) -> dict[str, QWidget]:
         opt = is_optional(ann_full)
         ann = unwrap_optional(ann_full)
 
-        default = field.default
+        default = defaults.get(name, field.default)
         desc = field.description or ""
 
         # Build the "inner" editor first
         if is_tuple_type(ann_full):
             inner = TupleWidget(ann, default=default)
+
         elif is_list_type(ann_full):
-            inner = ListWidget(ann, default=default if isinstance(default, list) else [], allow_reorder=True)
+            inner = ListWidget(
+                ann, 
+                default=default if isinstance(default, list) else [], 
+                allow_reorder=True)
+            
+        elif is_pydantic_model_type(ann_full):
+            if isinstance(default, BaseModel):
+                nested_default = default.model_dump()
+            elif isinstance(default, dict):
+                nested_default = default
+            else:
+                nested_default = {}
+            inner = CustomModelWidget(ann, default=nested_default)
         else:
             inner = build_leaf_widget(ann, default=default)
 
@@ -469,8 +547,8 @@ def build_widgets_from_model(model_cls: type[BaseModel]) -> dict[str, QWidget]:
         if desc:
             inner.setToolTip(desc)
 
-        if name in {"zarr_dir", "zarr_url", "zarr_urls"}:
-            inner.setEnabled(False)
+        #if name in {"zarr_dir", "zarr_url", "zarr_urls"}:
+        #    inner.setEnabled(False)
 
         widgets[name] = inner
 
@@ -485,6 +563,7 @@ def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
         if not widget.is_enabled():
             return None
         widget = widget.inner  # unwrap and continue
+        opt = False
 
     # Tuple/list containers
     if isinstance(widget, TupleWidget):
@@ -492,9 +571,13 @@ def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
 
     if isinstance(widget, ListWidget):
         return widget.value()
+    
+    if isinstance(widget, CustomModelWidget):
+        return widget.value_model()
 
     # Leaf
     raw = read_leaf_widget_value(widget, base)
+    
     # Validate/coerce via pydantic
     try:
         return TypeAdapter(base).validate_python(raw)
@@ -668,6 +751,18 @@ class WorkflowWorker(QObject):
 # 5) Opening dialog: choose analysis directory → open workflow window
 # =============================================================================
 
+from pathlib import Path
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+)
+
 class OpeningDialog(QDialog):
     dir_selected = Signal(Path)
 
@@ -684,6 +779,9 @@ class OpeningDialog(QDialog):
 
         self.dir_line = QLineEdit()
         self.dir_line.setReadOnly(True)
+
+        # Default path (shown immediately)
+        self.default_dir = Path.home() / "Documents" / "SkInnervationProject" / "Data" / "Multitile"
         self.dir_line.setPlaceholderText("No directory selected")
 
         choose_btn = QPushButton("Choose directory…")
@@ -699,9 +797,26 @@ class OpeningDialog(QDialog):
         self.resize(520, 220)
 
     def choose_dir(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, "Select analysis directory")
+        
+        # Start browsing from current text if valid, otherwise from default_dir
+        start_dir = self.default_dir
+        current = self.dir_line.text().strip()
+        if current:
+            try:
+                p = Path(current)
+                if p.exists():
+                    start_dir = p
+            except Exception:
+                pass
+
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select analysis directory",
+            str(start_dir),
+        )
         if not folder:
             return
+
         p = Path(folder)
         self.dir_line.setText(str(p))
         self.dir_selected.emit(p)
@@ -726,6 +841,11 @@ class WorkflowWindow(QMainWindow):
         self.task_by_id: Dict[str, TaskSpec] = {} #task_id => task {t.key: t for t in self.tasks}
         self.params_by_id: dict[str, dict[str, Any]] = {}  # workflow_id -> param values
 
+        # Keep track of current workflow
+        self.current_workflow_id: Optional[str] = None
+        self.current_param_widgets: Optional[dict[str, QWidget]] = None
+        self.current_task_key: Optional[str] = None
+
         # thread/worker
         self.thread: Optional[QThread] = None
         self.worker: Optional[WorkflowWorker] = None
@@ -739,11 +859,14 @@ class WorkflowWindow(QMainWindow):
         top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         main_layout.addWidget(top_label)
 
+
+
         # Panels: Available / Workflow / Parameters
         splitter = QSplitter(Qt.Horizontal)
 
         # left: available tasks
         left_box = QGroupBox("Available tasks")
+        self._set_title_stylesheet(left_box)
         left_layout = QVBoxLayout(left_box)
         self.available_list = QListWidget()
         for t in self.tasks:
@@ -755,6 +878,7 @@ class WorkflowWindow(QMainWindow):
 
         # middle: workflow tasks
         mid_box = QGroupBox("Workflow (runs top → bottom)")
+        self._set_title_stylesheet(mid_box)
         mid_layout = QVBoxLayout(mid_box)
         self.workflow_list = QListWidget()
         self.workflow_list.currentItemChanged.connect(self.on_workflow_selected)
@@ -780,6 +904,7 @@ class WorkflowWindow(QMainWindow):
 
         # right: params
         right_box = QGroupBox("Parameters")
+        _set_title_stylesheet(right_box)
         right_layout = QVBoxLayout(right_box)
 
         self.params_title = QLabel("Select a workflow task to edit parameters.")
@@ -830,13 +955,13 @@ class WorkflowWindow(QMainWindow):
         self.auto_vis_chk = QCheckBox("Auto-visualize at end")
         self.auto_vis_chk.setChecked(False)
         run_row.addWidget(self.auto_vis_chk)
-        run_row.addSpacing(12)
+        #run_row.addSpacing(12)
 
-        run_row.addWidget(QLabel("Email to:"))
-        self.email_to = QLineEdit()
-        self.email_to.setPlaceholderText("optional@example.org")
-        self.email_to.setFixedWidth(240)
-        run_row.addWidget(self.email_to)
+        #run_row.addWidget(QLabel("Email to:"))
+        #self.email_to = QLineEdit()
+        #self.email_to.setPlaceholderText("optional@example.org")
+        #self.email_to.setFixedWidth(240)
+        #run_row.addWidget(self.email_to)
         run_row.addStretch(1)
 
 
@@ -847,7 +972,6 @@ class WorkflowWindow(QMainWindow):
         #self.addToolBar(tb)
 
         #tb.addSeparator()
-
 
 
         # bottom: status + logs
@@ -873,6 +997,21 @@ class WorkflowWindow(QMainWindow):
         self.append_log("Ready.")
 
         self._populate_images_choices()
+
+    def _set_title_stylesheet(self, group_box: QGroupBox) -> None:
+        group_box.setStyleSheet("""
+            QGroupBox {
+                margin-top: 24px;
+            }
+
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 6px;
+                font-size: 18pt;
+                font-weight: bold;
+            }
+            """)
 
     # --- zarr discovery ---
     def _discover_zarr_images(self, root: Path) -> List[Path]:
@@ -995,17 +1134,19 @@ class WorkflowWindow(QMainWindow):
         self.status_list.addItem(f"⏳ {task.title}")
         self.append_log(f"Added task: {task.title}")
 
-        # Auto-fill common parameters for this task (if present)
-        #self._autofill_common_params_for_task(task_id)
-
         self._on_zarr_image_changed()
 
     def remove_task(self) -> None:
         row = self.workflow_list.currentRow()
         if row < 0:
             return
-        item = self.workflow_list.takeItem(row)
+        item = self.workflow_list.item(row) # don't yet trigger on_workflow_selected
         task_id = item.data(Qt.UserRole)
+        if self.current_workflow_id == task_id:
+            self.current_workflow_id = None
+            self.current_param_widgets = None
+            self.current_task_key = None
+        item = self.workflow_list.takeItem(row) # now trigger on_workflow_selected
         del self.params_by_id[task_id]
         del self.workflow_ids[row]
         del item
@@ -1014,7 +1155,6 @@ class WorkflowWindow(QMainWindow):
         del s_item
 
         self.append_log(f"Removed task: {self.task_by_id[task_id].title}")
-        self.clear_params_form()
         del self.task_by_id[task_id]
 
         self._on_zarr_image_changed()
@@ -1068,7 +1208,6 @@ class WorkflowWindow(QMainWindow):
             else:
                 w.setPlainText("" if val is None else str(val))
 
-
     # --- params editor ---
     def clear_params_form(self) -> None:
         self.params_title.setText("Select a workflow task to edit parameters.")
@@ -1076,7 +1215,7 @@ class WorkflowWindow(QMainWindow):
             self.form_layout.removeRow(0)
     
     def _save_current_params(self) -> None:
-        if not hasattr(self, "current_param_widgets"):
+        if self.current_workflow_id is None:
             return
         raw: dict[str, Any] = {}
         task = self.task_by_id[self.current_workflow_id]
@@ -1092,7 +1231,6 @@ class WorkflowWindow(QMainWindow):
             return
         task_id = current.data(Qt.UserRole)
         task_key = current.data(Qt.UserRole + 1)
-        #row = self.workflow_list.currentRow()
         self.show_task_params(task_key, task_id)
 
     def show_task_params(self, task_key: str, task_id: str) -> None:
@@ -1110,7 +1248,6 @@ class WorkflowWindow(QMainWindow):
         for name, w in widgets.items():
             if name in saved:
                 self._set_widget_value(w, saved[name])
-        #self.param_widgets[task_id] = widgets
 
         # store current widgets for reading later
         self.current_param_widgets = widgets
