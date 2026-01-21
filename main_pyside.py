@@ -19,6 +19,7 @@ from skinnervation3d_fractal_tasks.tasks import (fit_surface,
                                                  analyse_fiber_plexus,
                                                  compute_fiber_density_per_structure,
                                                  count_number_fiber_crossing)
+
 from mesospim_fractal_tasks.tasks import (crop_regions_of_interest_dask,
                                           correct_flatfield_dask,
                                           correct_illumination_dask,
@@ -140,63 +141,38 @@ def send_email(cfg: EmailConfig, subject: str, body: str) -> None:
 # 2) TaskSpec: auto model from function signature
 # =============================================================================
 
-import os
-import sys
-import subprocess
-from pathlib import Path
-
-def launch_napari_in_conda_env(*, analysis_dir: Path, zarr_path: str | None, env_name: str) -> None:
+def launch_napari_in_conda_env(*, analysis_dir: Path, zarr_paths: List[str] | None, env_name: str) -> None:
     # Build a minimal Python snippet so we don't depend on shell quoting too much.
     # Napari can accept a path argument directly, but here we do it explicitly.
-    py = r"""
-            import sys
-            import napari
-
-            viewer = napari.Viewer()
-            path = sys.argv[1] if len(sys.argv) > 1 else ""
-            if path:
-                # napari will guess reader plugins. For zarr OME-NGFF, napari-ome-zarr helps.
-                viewer.open(path)
-            napari.run()
-        """
+    log_path = analysis_dir / f"napari_launch.log"
     child_env = os.environ.copy()
     child_env.pop("QT_API", None)
-    args = ["conda", "run", "-n", env_name, "napari"]#"python", "-c", py]
-    if zarr_path:
-        args.append(str(zarr_path))
-
-    # start without blocking your GUI
-    subprocess.Popen(
-        args,
-        cwd=str(analysis_dir),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=(os.name != "nt"),
-        env=child_env,
-    )
-
-import datetime
-def launch_napari_debug(zarr_path: str | None, env_name: str, analysis_dir: Path) -> Path:
-    log_path = analysis_dir / f"napari_launch_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-    cmd = ["conda", "run", "-n", env_name, "napari"]
-    child_env = os.environ.copy()
-    child_env.pop("QT_API", None)
-    if zarr_path:
-        cmd.append(zarr_path)
+    args = ["conda", "run", "-n", env_name, "napari"]
+    if zarr_paths:
+        for p in zarr_paths:
+            args.append(str(p))
 
     with log_path.open("w") as f:
-        f.write("CMD: " + " ".join(cmd) + "\n\n")
+        f.write("CMD: " + " ".join(args) + "\n\n")
         p = subprocess.Popen(
-            cmd,
+            args,
             cwd=str(analysis_dir),
             stdout=f,
             stderr=subprocess.STDOUT,
             text=True,
-            env=child_env
+            env=child_env,
         )
         f.write(f"\nSpawned PID: {p.pid}\n")
-    return log_path
 
+    # start without blocking your GUI
+    #subprocess.Popen(
+    #    args,
+    #    cwd=str(analysis_dir),
+    #    stdout=f, #subprocess.DEVNULL,
+    #    stderr=subprocess.DEVNULL,
+    #    close_fds=(os.name != "nt"),
+    #    env=child_env,
+    #)
 
 # =============================================================================
 # 2) TaskSpec: auto model from function signature
@@ -608,9 +584,6 @@ def build_widgets_from_model(
         if desc:
             inner.setToolTip(desc)
 
-        #if name in {"zarr_dir", "zarr_url", "zarr_urls"}:
-        #    inner.setEnabled(False)
-
         widgets[name] = inner
 
     return widgets
@@ -675,19 +648,21 @@ class WorkflowWorker(QObject):
     def __init__(
         self,
         analysis_dir: Path,
+        selected_image: Path | None,
         plan: List[Tuple[TaskSpec, BaseModel]],
         auto_visualize: bool,
         email_cfg: EmailConfig,
     ):
         super().__init__()
         self.analysis_dir = analysis_dir
+        self.selected_image = selected_image
         self.plan = plan
         self.auto_visualize = auto_visualize
         self.email_cfg = email_cfg
         self._cancelled = False
 
-        # If tasks return an output path, we can store it here
-        self._last_path: Optional[Path] = None
+        # If tasks return output paths, we can store it here
+        self._last_path: Optional[List[Path]] = None
 
     def cancel(self) -> None:
         self._cancelled = True
@@ -701,13 +676,13 @@ class WorkflowWorker(QObject):
         
         # --- install GUI logging handler ---
         handler = QtLogHandler(self.log.emit)
-        handler.setLevel(logging.WARNING)
+        handler.setLevel(logging.INFO)
         handler.setFormatter(
-            logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+            logging.Formatter("%(asctime)s | pid=%(process)d | %(name)s | %(levelname)s | %(message)s")
         )
 
         old_level = root.level
-        root.setLevel(logging.WARNING)
+        root.setLevel(logging.INFO)
 
         old_handlers = list(root.handlers)
         removed = []
@@ -715,10 +690,25 @@ class WorkflowWorker(QObject):
             if isinstance(h, logging.StreamHandler):
                 removed.append(h)
                 root.removeHandler(h)
-        
+        class DropDistributedFilter(logging.Filter):
+            def filter(self, record: logging.LogRecord) -> bool:
+                return not (
+                    record.name == "distributed"
+                    or record.name.startswith("distributed.")
+                    or record.name.startswith("tornado")
+                )
+
+        handler.addFilter(DropDistributedFilter())
         root.addHandler(handler)
 
         try:
+            self.log.emit("Starting workflow…")
+            self.log.emit(logger.name)
+            self.log.emit(f"Logging level: {logger.level}")
+            self.log.emit(f"Handlers: {len(logger.handlers)}")
+            for h in removed:
+                self.log.emit(f"Removed handler: {h}")
+            logger.info("Test log")
             self._run_workflow()
         finally:
             root.removeHandler(handler)
@@ -750,7 +740,7 @@ class WorkflowWorker(QObject):
                 out = task.fn(**params_model.model_dump())
 
                 # Heuristic: if output contains a path, store it
-                self._last_path = self._extract_output_path(out) or self._last_path
+                self._last_path = self._extract_output_path(out)
 
                 self.log.emit(f"[{i}/{total}] DONE  {task.title}")
                 self.task_finished.emit(i, total, task.title)
@@ -758,13 +748,20 @@ class WorkflowWorker(QObject):
             # Auto-visualize hook
             if ok and self.auto_visualize:
                 if self._last_path is None:
-                    self.log.emit("Auto-visualize enabled, but no output path detected.")
+                    if self.selected_image is None:
+                        self.log.emit("Auto-visualize enabled, but no output image detected.")
+                    else:
+                        paths_to_open = [self.selected_image]
                 else:
-                    self.log.emit(f"Auto-visualize: opening in napari: {self._last_path}")
-                    try:
-                        subprocess.Popen([sys.executable, "-m", "napari", str(self._last_path)])
-                    except Exception as e:
-                        self.log.emit(f"Auto-visualize failed: {e!r}")
+                    paths_to_open = self._last_path
+                paths_str = ", ".join(map(str, paths_to_open))
+                self.log.emit(f"Auto-visualize: opening in napari: " + paths_str)
+                try:
+                    launch_napari_in_conda_env(analysis_dir=self.analysis_dir, 
+                                               zarr_paths=paths_to_open, 
+                                               env_name="napari-crop")
+                except Exception as e:
+                    self.log.emit(f"Auto-visualize failed: {e!r}")
 
             # Email notification
             if self.email_cfg.enabled and self.email_cfg.to_address.strip():
@@ -784,7 +781,7 @@ class WorkflowWorker(QObject):
         self.log.emit(f"=== Workflow finished: {final} ===")
         self.finished.emit(ok, final)
 
-    def _extract_output_path(self, out: Any) -> Optional[Path]:
+    def _extract_output_path(self, out: Any) -> Optional[list[Path]]:
         """
         Best-effort extraction:
         - If out is dict and contains something like output_zarr_url/zarr_url/path, use it.
@@ -794,15 +791,12 @@ class WorkflowWorker(QObject):
         try:
             if isinstance(out, dict):
                 # common keys
-                for k in ("output_path", "output_zarr_url", "output_zarr", "zarr_url", "path"):
-                    if k in out and out[k]:
-                        return Path(str(out[k]))
-
-                # fractal init convention
-                if "parallelization_list" in out and isinstance(out["parallelization_list"], list) and out["parallelization_list"]:
-                    first = out["parallelization_list"][0]
-                    if isinstance(first, dict) and "zarr_url" in first:
-                        return Path(str(first["zarr_url"]))
+                if "image_list_updates" in out.keys() and isinstance(out["image_list_updates"], list):
+                    image_list = []
+                    for image_dict in out["image_list_updates"]:
+                        if "zarr_url" in image_dict.keys():
+                            image_list.append(Path(image_dict["zarr_url"]))
+                    return image_list
         except Exception:
             return None
         return None
@@ -851,27 +845,15 @@ class AppController:
         self._show_opening_dialog()
 
     def _on_open_napari(self, analysis_dir: Path, selected_zarr: str | None):
-        launch_napari_debug(
+        launch_napari_in_conda_env(
             analysis_dir=analysis_dir,
-            zarr_path=selected_zarr,
-            env_name="napari-crop",  # set yours
+            zarr_paths=[selected_zarr],
+            env_name="napari-crop",
         )
 
 # =============================================================================
 # 5) Opening dialog: choose analysis directory → open workflow window
 # =============================================================================
-
-from pathlib import Path
-
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import (
-    QDialog,
-    QFileDialog,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QVBoxLayout,
-)
 
 class OpeningDialog(QDialog):
     dir_selected = Signal(Path)
@@ -947,6 +929,7 @@ class WorkflowWindow(QMainWindow):
         self.setWindowTitle("Workflow Runner — Workflow")
 
         self.analysis_dir = analysis_dir
+        self.selected_image: Optional[Path] = None
         self.tasks = tasks
         self.tasks_by_key: Dict[str, TaskSpec] = {t.key: t for t in self.tasks}
 
@@ -969,6 +952,7 @@ class WorkflowWindow(QMainWindow):
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
 
+        #------------------------------------------------------------
         top_row = QHBoxLayout()
         self.top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
         self.top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -977,18 +961,36 @@ class WorkflowWindow(QMainWindow):
         self.change_dir_btn = QPushButton("Change analysis directory…")
         self.change_dir_btn.clicked.connect(self._on_change_dir_clicked)
         top_row.addWidget(self.change_dir_btn)
-
-        self.crop_napari_btn = QPushButton("Crop image in napari…")
-        self.crop_napari_btn.clicked.connect(self._on_crop_in_napari_clicked)
-        top_row.addWidget(self.crop_napari_btn)
+        #top_row.addWidget(self.crop_napari_btn)
 
         main_layout.addLayout(top_row)
         #top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
         #top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         #main_layout.addWidget(top_label)
 
+        #------------------------------------------------------------
+        # Second row: image selection and possible visualisation
+        second_row = QHBoxLayout()
 
+        # Image selection combo list: scan *.zarr under analysis dir
+        self.zarr_image_combo = QComboBox()
+        self.zarr_image_combo.addItem("Select zarr image…", None)  # placeholder
+        self.zarr_image_combo.addItem("No zarr image (conversion task)", "__NO_ZARR__")
+        self.zarr_image_combo.currentIndexChanged.connect(self._on_zarr_image_changed)
+        self.refresh_zarr_images_btn = QPushButton("Refresh list")
+        self.refresh_zarr_images_btn.clicked.connect(self._populate_images_choices)
+        
+        # Button to visualise image in napari
+        self.crop_napari_btn = QPushButton("Visualize image in napari…")
+        self.crop_napari_btn.clicked.connect(self._on_crop_in_napari_clicked)
 
+        second_row.addWidget(QLabel("<b>Image:</b>"))
+        second_row.addWidget(self.zarr_image_combo, 1)
+        second_row.addWidget(self.refresh_zarr_images_btn)  
+        second_row.addWidget(self.crop_napari_btn)
+        main_layout.addLayout(second_row)
+
+        #------------------------------------------------------------
         # Panels: Available / Workflow / Parameters
         splitter = QSplitter(Qt.Horizontal)
 
@@ -1052,16 +1054,9 @@ class WorkflowWindow(QMainWindow):
         splitter.setSizes([300, 430, 520])
         main_layout.addWidget(splitter, 2)
 
+        #------------------------------------------------------------
         # Run row
         run_row = QHBoxLayout()
-        
-        # Zarr selector: scan *.zarr under analysis dir
-        self.zarr_image_combo = QComboBox()
-        self.zarr_image_combo.addItem("Select zarr image…", None)  # placeholder
-        self.zarr_image_combo.addItem("No zarr image (conversion task)", "__NO_ZARR__")
-        self.zarr_image_combo.currentIndexChanged.connect(self._on_zarr_image_changed)
-        self.refresh_zarr_images_btn = QPushButton("Refresh")
-        self.refresh_zarr_images_btn.clicked.connect(self._populate_images_choices)
 
         # Run/cancel button
         self.run_btn = QPushButton("Run workflow")
@@ -1070,26 +1065,23 @@ class WorkflowWindow(QMainWindow):
         self.cancel_btn = QPushButton("Cancel")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_workflow)
-        
-        run_row.addWidget(QLabel("Dataset:"))
-        run_row.addWidget(self.zarr_image_combo, 1)
-        run_row.addWidget(self.refresh_zarr_images_btn)
-        run_row.addSpacing(12)        
+             
         run_row.addWidget(self.run_btn)
         run_row.addSpacing(12)
         run_row.addWidget(self.cancel_btn)
         run_row.addSpacing(12)
 
-        self.auto_vis_chk = QCheckBox("Auto-visualize at end")
+        self.auto_vis_chk = QCheckBox("Visualize End Result")
         self.auto_vis_chk.setChecked(False)
         run_row.addWidget(self.auto_vis_chk)
-        #run_row.addSpacing(12)
+        run_row.addSpacing(12)
 
         #run_row.addWidget(QLabel("Email to:"))
-        #self.email_to = QLineEdit()
-        #self.email_to.setPlaceholderText("optional@example.org")
-        #self.email_to.setFixedWidth(240)
-        #run_row.addWidget(self.email_to)
+        self.email_to = QLineEdit()
+        self.email_to.setPlaceholderText("optional@example.org")
+        self.email_to.setFixedWidth(240)
+        self.email_to.setVisible(False)
+        run_row.addWidget(self.email_to)
         run_row.addStretch(1)
 
 
@@ -1098,10 +1090,9 @@ class WorkflowWindow(QMainWindow):
         # toolbar: auto visualize + email
         #tb = QToolBar("Main")
         #self.addToolBar(tb)
-
         #tb.addSeparator()
 
-
+        #------------------------------------------------------------
         # bottom: status + logs
         bottom_split = QSplitter(Qt.Horizontal)
 
@@ -1459,8 +1450,8 @@ class WorkflowWindow(QMainWindow):
 
         # Force workflow-scoped inputs
         selected_dir = str(self.analysis_dir)
-        selected_image = self._selected_zarr_image()
-        selected_image_str = str(selected_image) if selected_image else ""
+        self.selected_image = self._selected_zarr_image()
+        selected_image_str = str(self.selected_image) if self.selected_image else ""
 
         # Always force zarr_dir if present
         if "zarr_dir" in task.model.model_fields:
@@ -1531,6 +1522,7 @@ class WorkflowWindow(QMainWindow):
         self.thread = QThread()
         self.worker = WorkflowWorker(
             analysis_dir=self.analysis_dir,
+            selected_image=self.selected_image,
             plan=plan,
             auto_visualize=self.auto_vis_chk.isChecked(),
             email_cfg=email_cfg,
