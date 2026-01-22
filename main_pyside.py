@@ -1,12 +1,10 @@
 from __future__ import annotations
 import os
-os.environ["QT_API"] = "pyside6"
 import re
 import logging
 import inspect
 import uuid
 import sys
-import time
 import traceback
 import smtplib
 import subprocess
@@ -30,7 +28,6 @@ from pydantic import BaseModel, ValidationError, create_model, TypeAdapter
 
 from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -60,14 +57,8 @@ logger = logging.getLogger(__name__)
 # 0) Tasks definition
 # =============================================================================
 
-def demo_task(*, zarr_urls: list[str], zarr_dir: str, sleep_s: float = 0.5) -> dict[str, Any]:
-    """Demo task: sleeps a bit and returns the chosen zarr url."""
-    time.sleep(max(sleep_s, 0.0))
-    logger.info(f"Demo task: sleeping {sleep_s} seconds")
-    return {"zarr_urls": zarr_urls, "zarr_dir": zarr_dir}
 
 TASK_FUNCTIONS: List[Callable[..., Any]] = [
-    demo_task,
     mesospim_to_omezarr.mesospim_to_omezarr,
     crop_regions_of_interest_dask.crop_regions_of_interest,
     correct_flatfield_dask.correct_flatfield,
@@ -142,9 +133,8 @@ def send_email(cfg: EmailConfig, subject: str, body: str) -> None:
 # =============================================================================
 
 def launch_napari_in_conda_env(*, analysis_dir: Path, zarr_paths: List[str] | None, env_name: str) -> None:
-    # Build a minimal Python snippet so we don't depend on shell quoting too much.
-    # Napari can accept a path argument directly, but here we do it explicitly.
-    log_path = analysis_dir / f"napari_launch.log"
+
+    #log_path = analysis_dir / f"napari_launch.log"
     child_env = os.environ.copy()
     child_env.pop("QT_API", None)
     args = ["conda", "run", "-n", env_name, "napari"]
@@ -152,27 +142,17 @@ def launch_napari_in_conda_env(*, analysis_dir: Path, zarr_paths: List[str] | No
         for p in zarr_paths:
             args.append(str(p))
 
-    with log_path.open("w") as f:
-        f.write("CMD: " + " ".join(args) + "\n\n")
-        p = subprocess.Popen(
-            args,
-            cwd=str(analysis_dir),
-            stdout=f,
-            stderr=subprocess.STDOUT,
-            text=True,
-            env=child_env,
-        )
-        f.write(f"\nSpawned PID: {p.pid}\n")
-
-    # start without blocking your GUI
-    #subprocess.Popen(
-    #    args,
-    #    cwd=str(analysis_dir),
-    #    stdout=f, #subprocess.DEVNULL,
-    #    stderr=subprocess.DEVNULL,
-    #    close_fds=(os.name != "nt"),
-    #    env=child_env,
-    #)
+    #with log_path.open("w") as f:
+    #    f.write("CMD: " + " ".join(args) + "\n\n")
+    p = subprocess.Popen(
+        args,
+        cwd=str(analysis_dir),
+        stdout=subprocess.DEVNULL, #f
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=child_env,
+    )
+     #   f.write(f"\nSpawned PID: {p.pid}\n")
 
 # =============================================================================
 # 2) TaskSpec: auto model from function signature
@@ -185,8 +165,9 @@ class TaskSpec:
     description: str
     fn: Callable[..., Any]
     model: Type[BaseModel]  # auto-generated from fn signature
+    param_descriptions: dict[str, str]
 
-def _safe_doc_firstline(fn: Callable[..., Any]) -> str:
+def _parse_doc_fn_description(fn: Callable[..., Any]) -> str:
     doc = inspect.getdoc(fn) or ""
     if doc:
         doc_lines = doc.split("\n")
@@ -196,6 +177,83 @@ def _safe_doc_firstline(fn: Callable[..., Any]) -> str:
         return "\n".join(doc_lines[:l])
     else:
         return ""
+    
+def _parse_doc_param_description(fn: Callable[..., Any]) -> dict[str, str]:
+    doc = inspect.getdoc(fn) or ""
+    possible_headers = ("Args:", "Arguments:", "Parameters:", "Kwargs:", "Keyword Args:")
+    if not doc:
+        return {}
+
+    lines = doc.splitlines()
+    
+    # Find the first relevant section header
+    start = None
+    for i, line in enumerate(lines):
+        if line.strip() in possible_headers:
+            start = i + 1
+            break
+    if start is None:
+        return {}
+
+    out = {}
+    param_line_re = re.compile(
+        r"""
+        ^(?P<indent>\s+)                      # indentation
+        (?P<name>[A-Za-z_][A-Za-z0-9_]*)      # param name
+        (?:\s*\([^)]*\))?                     # optional "(type)" - ignored
+        \s*:\s*
+        (?P<desc>.*\S.*)?                     # initial description (optional, may be empty)
+        $""",
+        re.VERBOSE,
+    )
+    current_name = None
+    current_desc_parts = []
+    base_indent = None
+
+    def flush():
+        nonlocal current_name, current_desc_parts
+        if current_name:
+            # Normalize whitespace, keep it readable
+            desc = " ".join(s.strip() for s in current_desc_parts if s.strip()).strip()
+            if desc:
+                out[current_name] = desc
+        current_name = None
+        current_desc_parts = []
+
+    # Parse until we hit a non-indented line (next section) or end
+    for line in lines[start:]:
+        # Stop at the next top-level section header
+        if line and not line.startswith(" "):  # non-indented => new section likely
+            break
+
+        if not line.strip():
+            # Blank line inside Args section -> treat as paragraph break
+            if current_name:
+                current_desc_parts.append("")
+            continue
+
+        m = param_line_re.match(line)
+        if m:
+            flush()
+            current_name = m.group("name")
+            base_indent = len(m.group("indent"))
+            first = (m.group("desc") or "").strip()
+            if first:
+                current_desc_parts.append(first)
+            continue
+
+        # Continuation line: must belong to current param and be more indented than the param line
+        if current_name is not None and base_indent is not None:
+            indent_len = len(line) - len(line.lstrip(" "))
+            if indent_len > base_indent:
+                current_desc_parts.append(line.strip())
+                continue
+
+        # Otherwise: ignore (or could break if you want strict behavior)
+        # Here we just ignore unexpected lines.
+
+    flush()
+    return out
 
 def build_model_from_signature(fn: Callable[..., Any]) -> Type[BaseModel]:
     """
@@ -205,7 +263,6 @@ def build_model_from_signature(fn: Callable[..., Any]) -> Type[BaseModel]:
       - keyword-only args are included normally
     """
     sig = inspect.signature(fn)
-    #type_hints = getattr(fn, "__annotations__", {})
     type_hints = get_type_hints(fn, include_extras=True)
 
     fields: Dict[str, Tuple[Any, Any]] = {}
@@ -234,10 +291,11 @@ def build_task_specs(fns: List[Callable[..., Any]]) -> List[TaskSpec]:
         specs.append(
             TaskSpec(
                 key=fn.__name__,
-                title=fn.__name__,
-                description=_safe_doc_firstline(fn),
+                title=fn.__name__.replace("_", " ").capitalize(),
+                description=_parse_doc_fn_description(fn),
                 fn=fn,
                 model=build_model_from_signature(fn),
+                param_descriptions=_parse_doc_param_description(fn),
             )
         )
     return specs
@@ -412,7 +470,8 @@ class CustomModelWidget(QWidget):
         self, 
         model_cls: type[BaseModel], 
         default: Any = None, 
-        parent=None
+        parent=None,
+        param_descriptions: dict[str, str] | None = None
     ):
         super().__init__(parent)
         self.model_cls = model_cls
@@ -431,7 +490,7 @@ class CustomModelWidget(QWidget):
         self.group = QGroupBox()
         outer.addWidget(self.group)
 
-        self.widgets = build_widgets_from_model(model_cls, default_dict)
+        self.widgets = build_widgets_from_model(model_cls, defaults=default_dict, param_descriptions=param_descriptions)
 
         form = QFormLayout(self.group)
         form.setContentsMargins(8, 8, 8, 8)
@@ -539,7 +598,8 @@ def read_leaf_widget_value(widget: QWidget, expected_type: Any) -> Any:
 
 def build_widgets_from_model(
     model_cls: type[BaseModel],
-    defaults: dict[str, Any] | None = None
+    defaults: dict[str, Any] | None = None,
+    param_descriptions: dict[str, str] | None = None
 ) -> dict[str, QWidget]:
     
     defaults = defaults or {}
@@ -554,7 +614,7 @@ def build_widgets_from_model(
         ann = unwrap_optional(ann_full)
 
         default = defaults.get(name, field.default)
-        desc = field.description or ""
+        param_desc = param_descriptions[name] if param_descriptions else "None"
 
         # Build the "inner" editor first
         if is_tuple_type(ann_full):
@@ -573,7 +633,9 @@ def build_widgets_from_model(
                 nested_default = default
             else:
                 nested_default = {}
-            inner = CustomModelWidget(ann, default=nested_default)
+            inner = CustomModelWidget(ann, default=nested_default, param_descriptions=param_descriptions)
+            if opt:
+                default = None
         else:
             inner = build_leaf_widget(ann, default=default)
 
@@ -581,15 +643,13 @@ def build_widgets_from_model(
         if opt:
             inner = OptionalWrapperWidget(inner, default_is_none=(default is None))
 
-        if desc:
-            inner.setToolTip(desc)
+        inner.setToolTip(param_desc)
 
         widgets[name] = inner
 
     return widgets
 
 def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
-    opt = is_optional(expected_type)
     base = unwrap_optional(expected_type)
 
     # Optional wrapper
@@ -597,7 +657,6 @@ def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
         if not widget.is_enabled():
             return None
         widget = widget.inner  # unwrap and continue
-        opt = False
 
     # Tuple/list containers
     if isinstance(widget, TupleWidget):
@@ -659,16 +718,23 @@ class WorkflowWorker(QObject):
         self.plan = plan
         self.auto_visualize = auto_visualize
         self.email_cfg = email_cfg
-        self._cancelled = False
+        self._interrupted = False
 
         # If tasks return output paths, we can store it here
         self._last_path: Optional[List[Path]] = None
 
-    def cancel(self) -> None:
-        self._cancelled = True
+    def interrupt(self) -> None:
+        self._interrupted = True
 
-    def is_cancelled(self) -> bool:
-        return self._cancelled
+    def is_interrupted(self) -> bool:
+        return self._interrupted
+    
+    def _pretty_dict(self, d: dict[str, Any]) -> str:
+        out = ""
+        for k, v in d.items():
+            if isinstance(v, dict):
+                v = self._pretty_dict(v)
+        return "\n".join([f"  {k}: {v}" for k, v in d.items()])
 
     @Slot()
     def run(self) -> None:
@@ -678,7 +744,7 @@ class WorkflowWorker(QObject):
         handler = QtLogHandler(self.log.emit)
         handler.setLevel(logging.INFO)
         handler.setFormatter(
-            logging.Formatter("%(asctime)s | pid=%(process)d | %(name)s | %(levelname)s | %(message)s")
+            logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
         )
 
         old_level = root.level
@@ -703,12 +769,6 @@ class WorkflowWorker(QObject):
 
         try:
             self.log.emit("Starting workflow…")
-            self.log.emit(logger.name)
-            self.log.emit(f"Logging level: {logger.level}")
-            self.log.emit(f"Handlers: {len(logger.handlers)}")
-            for h in removed:
-                self.log.emit(f"Removed handler: {h}")
-            logger.info("Test log")
             self._run_workflow()
         finally:
             root.removeHandler(handler)
@@ -726,15 +786,23 @@ class WorkflowWorker(QObject):
 
         try:
             for i, (task, params_model) in enumerate(self.plan, start=1):
-                if self.is_cancelled():
+                if self.is_interrupted():
                     ok = False
-                    final = "Cancelled"
-                    self.log.emit("Cancellation requested. Stopping.")
+                    final = "Interrupted"
+                    self.log.emit("Workflow interruption requested. Stopping after this task.")
                     break
+
+                if i > 0 and self._last_path:
+                    
+                    # If last task output path, use it as new zarr_url
+                    params = dict(params_model.model_dump())
+                    params["zarr_url"] = str(self._last_path[0])
+                    params_model = task.model(**params)
 
                 self.task_started.emit(i, total, task.title)
                 self.log.emit(f"[{i}/{total}] START {task.title}")
-                self.log.emit(f"  params: {params_model.model_dump()}")
+                self.log.emit(f"  Parameters: {params_model.model_dump()}")
+                self.log.emit(f"-------------------------------------------------------------------------------\n")
 
                 # Call the task: your validate_call wrapper will validate again internally.
                 out = task.fn(**params_model.model_dump())
@@ -749,19 +817,19 @@ class WorkflowWorker(QObject):
             if ok and self.auto_visualize:
                 if self._last_path is None:
                     if self.selected_image is None:
-                        self.log.emit("Auto-visualize enabled, but no output image detected.")
+                        self.log.emit("Output visualization enabled, but no output image detected.")
                     else:
-                        paths_to_open = [self.selected_image]
+                        paths_to_open = [self.selected_image.parent / self.selected_image.name]
                 else:
-                    paths_to_open = self._last_path
+                    paths_to_open = [p.parent / p.name for p in self._last_path]
                 paths_str = ", ".join(map(str, paths_to_open))
-                self.log.emit(f"Auto-visualize: opening in napari: " + paths_str)
+                self.log.emit(f"Output visualization: opening in Napari: " + paths_str)
                 try:
                     launch_napari_in_conda_env(analysis_dir=self.analysis_dir, 
                                                zarr_paths=paths_to_open, 
                                                env_name="napari-crop")
                 except Exception as e:
-                    self.log.emit(f"Auto-visualize failed: {e!r}")
+                    self.log.emit(f"Output visualization failed: {e!r}")
 
             # Email notification
             if self.email_cfg.enabled and self.email_cfg.to_address.strip():
@@ -776,6 +844,7 @@ class WorkflowWorker(QObject):
         except Exception:
             ok = False
             final = "Failed"
+            self._last_path = None
             self.log.emit("ERROR:\n" + traceback.format_exc())
 
         self.log.emit(f"=== Workflow finished: {final} ===")
@@ -783,10 +852,7 @@ class WorkflowWorker(QObject):
 
     def _extract_output_path(self, out: Any) -> Optional[list[Path]]:
         """
-        Best-effort extraction:
-        - If out is dict and contains something like output_zarr_url/zarr_url/path, use it.
-        - If it contains parallelization_list, use first item's zarr_url.
-        You can customize for your conventions.
+        Extract zarr_url from image_list_updates if output by a task.
         """
         try:
             if isinstance(out, dict):
@@ -800,56 +866,6 @@ class WorkflowWorker(QObject):
         except Exception:
             return None
         return None
-
-class AppController:
-    def __init__(self, tasks):
-        self.tasks = tasks
-        self.workflow_win: Optional[WorkflowWindow] = None
-
-    def start(self) -> None:
-        self._show_opening_dialog()
-
-    def _show_opening_dialog(self) -> None:
-        welcome = OpeningDialog()
-        chosen_dir: Optional[Path] = None
-
-        def on_dir_selected(p: Path) -> None:
-            nonlocal chosen_dir
-            chosen_dir = p
-
-        welcome.dir_selected.connect(on_dir_selected)
-        
-        if welcome.exec() != QDialog.Accepted or chosen_dir is None:
-            return  # user cancelled -> quit app 
-
-        self._show_workflow_window(chosen_dir)
-
-    def _show_workflow_window(self, analysis_dir: Path):
-        if self.workflow_win is not None:
-            self.workflow_win.close()
-            self.workflow_win.deleteLater()
-            self.workflow_win = None
-
-        win = WorkflowWindow(analysis_dir=analysis_dir, tasks=self.tasks)
-        win.request_change_analysis_dir.connect(self._on_change_analysis_dir)
-        win.request_open_napari.connect(self._on_open_napari)
-        win.show()
-        self.workflow_win = win
-
-    def _on_change_analysis_dir(self):
-        # close workflow and go back to opening dialog
-        if self.workflow_win is not None:
-            self.workflow_win.close()
-            self.workflow_win.deleteLater()
-            self.workflow_win = None
-        self._show_opening_dialog()
-
-    def _on_open_napari(self, analysis_dir: Path, selected_zarr: str | None):
-        launch_napari_in_conda_env(
-            analysis_dir=analysis_dir,
-            zarr_paths=[selected_zarr],
-            env_name="napari-crop",
-        )
 
 # =============================================================================
 # 5) Opening dialog: choose analysis directory → open workflow window
@@ -953,6 +969,7 @@ class WorkflowWindow(QMainWindow):
         main_layout = QVBoxLayout(central)
 
         #------------------------------------------------------------
+        # First row: analysis directory
         top_row = QHBoxLayout()
         self.top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
         self.top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -961,12 +978,8 @@ class WorkflowWindow(QMainWindow):
         self.change_dir_btn = QPushButton("Change analysis directory…")
         self.change_dir_btn.clicked.connect(self._on_change_dir_clicked)
         top_row.addWidget(self.change_dir_btn)
-        #top_row.addWidget(self.crop_napari_btn)
 
         main_layout.addLayout(top_row)
-        #top_label = QLabel(f"<b>Analysis directory:</b> {self.analysis_dir}")
-        #top_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        #main_layout.addWidget(top_label)
 
         #------------------------------------------------------------
         # Second row: image selection and possible visualisation
@@ -1058,17 +1071,17 @@ class WorkflowWindow(QMainWindow):
         # Run row
         run_row = QHBoxLayout()
 
-        # Run/cancel button
+        # Run/interrupt button
         self.run_btn = QPushButton("Run workflow")
         self.run_btn.clicked.connect(self.run_workflow)
         self.run_btn.setEnabled(False)
-        self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setEnabled(False)
-        self.cancel_btn.clicked.connect(self.cancel_workflow)
+        self.interrupt_btn = QPushButton("Interrupt Workflow")
+        self.interrupt_btn.setEnabled(False)
+        self.interrupt_btn.clicked.connect(self.interrupt_workflow)
              
         run_row.addWidget(self.run_btn)
         run_row.addSpacing(12)
-        run_row.addWidget(self.cancel_btn)
+        run_row.addWidget(self.interrupt_btn)
         run_row.addSpacing(12)
 
         self.auto_vis_chk = QCheckBox("Visualize End Result")
@@ -1144,11 +1157,11 @@ class WorkflowWindow(QMainWindow):
         if msg.exec() != QMessageBox.Ok:
             return
 
-        # If a workflow is running, cancel first (optional but recommended)
+        # If a workflow is running, interrupt first (optional but recommended)
         if getattr(self, "worker", None) is not None:
             # reuse your existing cancel logic
             try:
-                self.cancel_workflow()
+                self.interrupt_workflow()
             except Exception:
                 pass
 
@@ -1180,13 +1193,12 @@ class WorkflowWindow(QMainWindow):
     def _discover_zarr_images(self, root: Path) -> List[Path]:
         """
         Show only:
-        - root/* (directories)
-        - root/*/* (directories)
+        - root/*.zarr/ (directories)
         """
         out: List[Path] = []
         try:
             level1 = [p for p in root.iterdir() if p.suffix == ".zarr" and p.is_dir()]
-            out.extend(sorted(level1))
+            #out.extend(sorted(level1))
 
             for p in level1:
                 try:
@@ -1265,7 +1277,7 @@ class WorkflowWindow(QMainWindow):
         self.email_to.setEnabled(not frozen)
         self.zarr_image_combo.setEnabled(not frozen)
         self.run_btn.setEnabled(not frozen)
-        self.cancel_btn.setEnabled(frozen)
+        self.interrupt_btn.setEnabled(frozen)
 
         # disable parameter widgets while running
         for name, widget in self.current_param_widgets.items():
@@ -1404,7 +1416,8 @@ class WorkflowWindow(QMainWindow):
             self.form_layout.removeRow(0)
 
         # build NEW widgets each time
-        widgets = build_widgets_from_model(task.model)
+        widgets = build_widgets_from_model(task.model, 
+                                           param_descriptions=task.param_descriptions)
 
         # restore previous values if we have them
         saved = self.params_by_id.get(task_id, {})
@@ -1484,7 +1497,7 @@ class WorkflowWindow(QMainWindow):
             title = txt.split(" ", 1)[1] if " " in txt else txt
             self.status_list.item(i).setText(f"⏳ {title}")
 
-    # --- run/cancel ---
+    # --- run/interrupt ---
     def run_workflow(self) -> None:
         if not self.workflow_ids:
             QMessageBox.information(self, "No workflow", "Add at least one task to the workflow.")
@@ -1542,10 +1555,10 @@ class WorkflowWindow(QMainWindow):
 
         self.thread.start()
 
-    def cancel_workflow(self) -> None:
+    def interrupt_workflow(self) -> None:
         if self.worker:
-            self.append_log("Cancellation requested…")
-            self.worker.cancel()
+            self.append_log("Interruption requested…")
+            self.worker.interrupt()
 
     @Slot(int, int, str)
     def on_task_started(self, idx: int, total: int, title: str) -> None:
@@ -1582,25 +1595,3 @@ class WorkflowWindow(QMainWindow):
 
         self.thread = None
         self.worker = None
-
-
-# =============================================================================
-# 7) App entry
-# =============================================================================
-
-def main() -> None:
-    app = QApplication(sys.argv)
-
-    controller = AppController(TASKS)
-    controller.start()
-
-    # If user cancelled in the opening dialog, no window will be shown.
-    # Exit cleanly.
-    if QApplication.topLevelWidgets() == []:
-        return
-
-    sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()
