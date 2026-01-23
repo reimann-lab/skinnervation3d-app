@@ -4,7 +4,7 @@ import re
 import logging
 import inspect
 import uuid
-import sys
+import html
 import traceback
 import smtplib
 import subprocess
@@ -165,7 +165,7 @@ class TaskSpec:
     description: str
     fn: Callable[..., Any]
     model: Type[BaseModel]  # auto-generated from fn signature
-    param_descriptions: dict[str, str]
+    param_descriptions: dict[str, Any]
 
 def _parse_doc_fn_description(fn: Callable[..., Any]) -> str:
     doc = inspect.getdoc(fn) or ""
@@ -178,9 +178,10 @@ def _parse_doc_fn_description(fn: Callable[..., Any]) -> str:
     else:
         return ""
     
-def _parse_doc_param_description(fn: Callable[..., Any]) -> dict[str, str]:
+def _parse_doc_param_description(
+        fn: Callable[..., Any] | type[BaseModel]) -> dict[str, str]:
     doc = inspect.getdoc(fn) or ""
-    possible_headers = ("Args:", "Arguments:", "Parameters:", "Kwargs:", "Keyword Args:")
+    possible_headers = ("Args:", "Arguments:", "Parameters:", "Attributes:")
     if not doc:
         return {}
 
@@ -227,7 +228,7 @@ def _parse_doc_param_description(fn: Callable[..., Any]) -> dict[str, str]:
             break
 
         if not line.strip():
-            # Blank line inside Args section -> treat as paragraph break
+            # Blank line inside Args section treated as paragraph break
             if current_name:
                 current_desc_parts.append("")
             continue
@@ -248,9 +249,6 @@ def _parse_doc_param_description(fn: Callable[..., Any]) -> dict[str, str]:
             if indent_len > base_indent:
                 current_desc_parts.append(line.strip())
                 continue
-
-        # Otherwise: ignore (or could break if you want strict behavior)
-        # Here we just ignore unexpected lines.
 
     flush()
     return out
@@ -470,8 +468,7 @@ class CustomModelWidget(QWidget):
         self, 
         model_cls: type[BaseModel], 
         default: Any = None, 
-        parent=None,
-        param_descriptions: dict[str, str] | None = None
+        parent=None
     ):
         super().__init__(parent)
         self.model_cls = model_cls
@@ -484,13 +481,17 @@ class CustomModelWidget(QWidget):
         else:
             default_dict = {}
 
+        param_descriptions = _parse_doc_param_description(model_cls)
+
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
         self.group = QGroupBox()
         outer.addWidget(self.group)
 
-        self.widgets = build_widgets_from_model(model_cls, defaults=default_dict, param_descriptions=param_descriptions)
+        self.widgets = build_widgets_from_model(model_cls, 
+                                                defaults=default_dict, 
+                                                param_descriptions=param_descriptions)
 
         form = QFormLayout(self.group)
         form.setContentsMargins(8, 8, 8, 8)
@@ -515,6 +516,22 @@ class CustomModelWidget(QWidget):
 # =============================================================================
 # 3) Pydantic -> widgets (basic types)
 # =============================================================================
+
+def fixed_width_tooltip(text: str, width_px: int = 360) -> str:
+    """
+    Return rich-text tooltip HTML with a fixed pixel width
+    and proper line wrapping.
+    """
+    safe = html.escape(text).replace("\n", "<br>")
+    return f"""
+    <div style="
+        width:{width_px}px;
+        white-space:normal;
+        word-wrap:break-word;
+    ">
+        {safe}
+    </div>
+    """
 
 def is_optional(tp: Any) -> bool:
     origin = get_origin(tp)
@@ -633,7 +650,7 @@ def build_widgets_from_model(
                 nested_default = default
             else:
                 nested_default = {}
-            inner = CustomModelWidget(ann, default=nested_default, param_descriptions=param_descriptions)
+            inner = CustomModelWidget(ann, default=nested_default)
             if opt:
                 default = None
         else:
@@ -642,8 +659,8 @@ def build_widgets_from_model(
         # Wrap optional
         if opt:
             inner = OptionalWrapperWidget(inner, default_is_none=(default is None))
-
-        inner.setToolTip(param_desc)
+        
+        inner.setToolTip(fixed_width_tooltip(param_desc, width_px=360))
 
         widgets[name] = inner
 
