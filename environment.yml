@@ -1,0 +1,9 @@
+name: skin3d-app
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.11,<=3.13
+  - pyside6
+  - requests
+  - pydantic>=2.0.0
