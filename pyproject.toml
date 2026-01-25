@@ -45,7 +45,7 @@ name = "skinnervation3d-app"
 dynamic = ["version"]
 description = "SkInnervation3D User Interface"
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<=3.13"
 authors = [
   { name = "Giliane Rochat", email = "giliane.rochat@usz.ch" }]
 dependencies = [
@@ -55,6 +55,9 @@ dependencies = [
   #"skinnervation3d-fractal-tasks",
   #"mesospim-fractal-tasks",
 ]
+# Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
+# https://peps.python.org/pep-0621/#dependencies-optional-dependencies)
+[project.optional-dependencies]
 dev = [
   "pytest",
   "pytest-mock",
