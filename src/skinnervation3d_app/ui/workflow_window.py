@@ -37,7 +37,7 @@ from skinnervation3d_app.ui.param_widgets.param_factory import (
     build_widgets_from_model,
     read_widget_value,
 )
-from src.skinnervation3d_app.ui.logging import QtLogEmitter, QtLogHandler
+from skinnervation3d_app.ui.logging import QtLogEmitter, QtLogHandler
 
 logger = logging.getLogger(__name__)
 

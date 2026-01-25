@@ -11,7 +11,7 @@ source = "vcs"
 # https://hatch.pypa.io/latest/config/build/
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/skinervation3d_app"]
+packages = ["src/skinnervation3d_app"]
 exclude = [
     "data",
     "Data",
@@ -43,26 +43,17 @@ exclude = [
 [project]
 name = "skinnervation3d-app"
 dynamic = ["version"]
-description = "SkInnervation3D workflow runner GUI"
+description = "SkInnervation3D User Interface"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.13"
 authors = [
   { name = "Giliane Rochat", email = "giliane.rochat@usz.ch" }]
 dependencies = [
   "pydantic>=2",
   "PySide6>=6.6",
   "requests",
-  "skinnervation3d-fractal-tasks",
-  "mesospim-fractal-tasks",
-]
-
-# GUI entry point (no console window on Windows when installed properly)
-[project.gui-scripts]
-skinnervation3d = "skinnervation3d_app.__main__:main"
-
-[project.optional-dependencies]
-napari = [
-  "napari",
+  #"skinnervation3d-fractal-tasks",
+  #"mesospim-fractal-tasks",
 ]
 dev = [
   "pytest",
@@ -74,6 +65,10 @@ dev = [
   "mkdocstrings",
   "mkdocstrings-python",
 ]
+
+# GUI entry point (no console window on Windows when installed properly)
+[project.gui-scripts]
+skinnervation3d = "skinnervation3d_app.__main__:main"
 
 # https://docs.astral.sh/ruff
 [tool.ruff]

@@ -17,11 +17,11 @@ Some dependencies are not publicly available and must be provided separately (wh
 
 ### Requirements
 
-	•	Python: >= 3.11 and < 3.13
-	•	Operating system: macOS, Linux, Windows (tested mainly on macOS & Linux)
-	•	Recommended environment manager:
-	•	conda or mamba (via Miniforge)
-	•	pyenv also works for advanced users
+•	Python: >= 3.11 and < 3.13
+•	Operating system: macOS, Linux, Windows
+•	Recommended environment manager:
+    •	conda or mamba (via Miniforge)
+    •	pyenv also works for advanced users
 
 ⚠️ Using a virtual environment is strongly recommended.
 
@@ -31,10 +31,9 @@ Some dependencies are not publicly available and must be provided separately (wh
 
 1. Install Miniforge
 
-If not already installed, download Miniforge from:
-	•	https://github.com/conda-forge/miniforge
+    If not already installed, download Miniforge from: https://github.com/conda-forge/miniforge
 
-Make sure conda or mamba is available in your shell.
+    Make sure conda or mamba is available in your shell.
 
 2. Create a Conda or Mamba environment
 
