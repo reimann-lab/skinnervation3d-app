@@ -2,13 +2,12 @@
 
 This application is a desktop tool that provides a user interface to define image-analysis workflows without writing code. The workflows are defined using Fractal task packages for image pre-processing (whole sample processing: conversion to OME-Zarr, illumination correction, stitching, etc.) and downstream skin innervation analysis (fiber segmentation, counting, surface fitting, etc.).
 
-The graphical interface allows to:
-	•	choose an analysis folder   
-	•	select an image dataset  
-	•	configure analysis steps   
-	•	run them in order   
-	•	monitor progress and logs   
-	•	optionally visualize results in Napari   
+The graphical interface allows to:  
+- choose an analysis folder  
+- select an image dataset  
+- configure analysis steps  
+- run them in order  
+- monitor progress and logs  
 
 ## Installation
 
@@ -17,11 +16,11 @@ Some dependencies are not publicly available and must be provided separately (wh
 
 ### Requirements
 
-•	Python: >= 3.11 and < 3.13  
-•	Operating system: macOS, Linux, Windows  
-•	Recommended environment manager:   
-    •	conda or mamba (via Miniforge)   
-    •	pyenv also works for advanced users   
+- Python: >= 3.11 and < 3.13  
+- Operating system: macOS, Linux, Windows  
+- Recommended environment manager:  
+	- conda or mamba (via Miniforge)  
+	- pyenv also works for advanced users  
 
 ⚠️ Using a virtual environment is strongly recommended.
 
