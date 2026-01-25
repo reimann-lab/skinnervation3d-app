@@ -58,12 +58,15 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-TASK_FUNCTIONS: List[Callable[..., Any]] = [
+PREPROCESSING_TASK_FUNCTIONS: List[Callable[..., Any]] = [
     mesospim_to_omezarr.mesospim_to_omezarr,
     crop_regions_of_interest_dask.crop_regions_of_interest,
     correct_flatfield_dask.correct_flatfield,
     correct_illumination_dask.correct_illumination,
-    stitch_with_multiview_stitcher.stitch_with_multiview_stitcher,
+    stitch_with_multiview_stitcher.stitch_with_multiview_stitcher
+]
+
+ANALYSIS_TASK_FUNCTIONS: List[Callable[..., Any]] = [
     fit_surface.fit_surface,
     segment_fibers.segment_fibers,
     count_number_fiber_crossing.count_number_fiber_crossing,
@@ -166,6 +169,10 @@ class TaskSpec:
     fn: Callable[..., Any]
     model: Type[BaseModel]  # auto-generated from fn signature
     param_descriptions: dict[str, Any]
+    category: str
+    package: str
+    module: str
+    doc_path: Optional[str]
 
 def _parse_doc_fn_description(fn: Callable[..., Any]) -> str:
     doc = inspect.getdoc(fn) or ""
@@ -283,9 +290,10 @@ def build_model_from_signature(fn: Callable[..., Any]) -> Type[BaseModel]:
     return create_model(model_name, **fields)  # type: ignore[arg-type]
 
 
-def build_task_specs(fns: List[Callable[..., Any]]) -> List[TaskSpec]:
+def build_task_specs(fns: List[Callable[..., Any]], category: str) -> List[TaskSpec]:
     specs: List[TaskSpec] = []
     for fn in fns:
+        package = fn.__module__.split(".")[0]
         specs.append(
             TaskSpec(
                 key=fn.__name__,
@@ -294,12 +302,18 @@ def build_task_specs(fns: List[Callable[..., Any]]) -> List[TaskSpec]:
                 fn=fn,
                 model=build_model_from_signature(fn),
                 param_descriptions=_parse_doc_param_description(fn),
+                category=category,
+                module=fn.__module__,
+                package=package,
+                doc_path=None
             )
         )
     return specs
 
 
-TASKS: List[TaskSpec] = build_task_specs(TASK_FUNCTIONS)
+PRE_TASKS: List[TaskSpec] = build_task_specs(PREPROCESSING_TASK_FUNCTIONS, category="preprocessing")
+ANALYSIS_TASKS: List[TaskSpec] = build_task_specs(ANALYSIS_TASK_FUNCTIONS, category="analysis")
+TASKS: List[TaskSpec] = PRE_TASKS + ANALYSIS_TASKS
 
 # =============================================================================
 # 3) Pydantic type-to-widget helper class
@@ -809,7 +823,7 @@ class WorkflowWorker(QObject):
                     self.log.emit("Workflow interruption requested. Stopping after this task.")
                     break
 
-                if i > 0 and self._last_path:
+                if i > 1 and self._last_path:
                     
                     # If last task output path, use it as new zarr_url
                     params = dict(params_model.model_dump())
@@ -1028,13 +1042,29 @@ class WorkflowWindow(QMainWindow):
         left_box = QGroupBox("Available tasks")
         self._set_title_stylesheet(left_box)
         left_layout = QVBoxLayout(left_box)
-        self.available_list = QListWidget()
-        for t in self.tasks:
+        
+        self.pre_list_title = QLabel("Preprocessing tasks:")
+        self.pre_list = QListWidget()
+        pre_tasks = [t for t in self.tasks if t.category == "preprocessing"]
+        for t in pre_tasks:
             item = QListWidgetItem(t.title)
             item.setData(Qt.UserRole + 1, t.key)
             item.setToolTip(t.description)
-            self.available_list.addItem(item)
-        left_layout.addWidget(self.available_list)
+            self.pre_list.addItem(item)
+        left_layout.addWidget(self.pre_list_title)
+        left_layout.addWidget(self.pre_list)
+
+        self.pre_list_title = QLabel("Analysis tasks:")
+        self.analysis_list = QListWidget()
+        analysis_tasks = [t for t in self.tasks if t.category == "analysis"]
+        for t in analysis_tasks:
+            item = QListWidgetItem(t.title)
+            item.setData(Qt.UserRole + 1, t.key)
+            item.setToolTip(t.description)
+            self.analysis_list.addItem(item)
+        left_layout.addWidget(self.pre_list_title)
+        left_layout.addWidget(self.analysis_list)
+        left_layout.addStretch(1)
 
         # middle: workflow tasks
         mid_box = QGroupBox("Workflow (runs top → bottom)")
@@ -1157,7 +1187,7 @@ class WorkflowWindow(QMainWindow):
                 subcontrol-origin: margin;
                 subcontrol-position: top left;
                 padding: 0 6px;
-                font-size: 18pt;
+                font-size: 24pt;
                 font-weight: bold;
             }
             """)

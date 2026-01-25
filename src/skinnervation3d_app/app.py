@@ -6,7 +6,10 @@ import sys
 from typing import Optional
 from pathlib import Path
 from PySide6.QtWidgets import QApplication, QDialog
-from main_pyside import WorkflowWindow, OpeningDialog, launch_napari_in_conda_env, TASKS
+from skinnervation3d_app.ui.workflow_window import WorkflowWindow
+from skinnervation3d_app.ui.opening_dialog_window import OpeningDialog
+from skinnervation3d_app.services.napari import launch_napari_in_conda_env
+from skinnervation3d_app.tasks.registry import TASKS
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,7 @@ class AppController:
         self.workflow_win = win
 
     def _on_change_analysis_dir(self):
+        
         # close workflow and go back to opening dialog
         if self.workflow_win is not None:
             self.workflow_win.close()
@@ -57,10 +61,9 @@ class AppController:
         launch_napari_in_conda_env(
             analysis_dir=analysis_dir,
             zarr_paths=[selected_zarr],
-            env_name="napari-crop",
         )
 
-def run_app():
+def run_app() -> int:
     app = QApplication(sys.argv)
 
     controller = AppController(TASKS)
@@ -69,9 +72,9 @@ def run_app():
     # If user cancelled in the opening dialog, no window will be shown.
     # Exit cleanly.
     if QApplication.topLevelWidgets() == []:
-        return
+        return 0
 
-    sys.exit(app.exec())
+    return sys.exit(app.exec())
 
 if __name__ == "__main__":
     run_app()

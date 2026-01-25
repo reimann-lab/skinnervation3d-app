@@ -1,0 +1,1 @@
+CONDA_NAPARI_ENV_NAME = "napari-crop"
