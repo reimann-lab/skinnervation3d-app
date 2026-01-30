@@ -68,11 +68,12 @@ dev = [
   "mkdocs-material",
   "mkdocstrings",
   "mkdocstrings-python",
+  "virtualenv<20.36"
 ]
 
 # GUI entry point (no console window on Windows when installed properly)
 [project.gui-scripts]
-skinnervation3d = "skinnervation3d_app.__main__:main"
+skin3d-app = "skinnervation3d_app.__main__:main"
 
 # https://docs.astral.sh/ruff
 [tool.ruff]
