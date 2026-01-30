@@ -6,7 +6,8 @@ import uuid
 from pydantic import BaseModel, ValidationError
 import logging
 
-from PySide6.QtCore import Signal, Slot, Qt, QThread
+from PySide6.QtCore import Signal, Slot, Qt, QThread, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -38,6 +39,7 @@ from skinnervation3d_app.ui.param_widgets.param_factory import (
     read_widget_value,
 )
 from skinnervation3d_app.ui.logging import QtLogEmitter, QtLogHandler
+from skinnervation3d_app.services.server import DocsServer
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class WorkflowWindow(QMainWindow):
     request_change_analysis_dir = Signal()          # ask app to go back to opening dialog
     request_open_napari = Signal(object, object)    # ask app to open napari
 
-    def __init__(self, analysis_dir: Path, tasks: List[TaskSpec]):
+    def __init__(self, analysis_dir: Path, tasks: List[TaskSpec], docs_server: DocsServer):
         super().__init__()
         self.setWindowTitle("Workflow Runner — Workflow")
 
@@ -69,6 +71,9 @@ class WorkflowWindow(QMainWindow):
         self._gui_log_handler: Optional[QtLogHandler] = None
         self.thread: Optional[QThread] = None
         self.worker: Optional[WorkflowWorker] = None
+
+        # Docs
+        self._docs_server = docs_server
 
         self._build_ui()
         self.resize(1300, 860)
@@ -204,6 +209,14 @@ class WorkflowWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.form_container)
         right_layout.addWidget(scroll)
+        
+        docs_row = QHBoxLayout()
+        self.more_info_btn = QPushButton("More info…")
+        self.more_info_btn.setEnabled(False)
+        self.more_info_btn.clicked.connect(self._open_more_info)
+        docs_row.addStretch(1)
+        docs_row.addWidget(self.more_info_btn)
+        right_layout.addLayout(docs_row)
 
         splitter.addWidget(left_box)
         splitter.addWidget(mid_box)
@@ -277,9 +290,6 @@ class WorkflowWindow(QMainWindow):
                 font-weight: bold;
             }
             """)
-        
-
-
 
     # --------------------------------------------------------------------------------
     # UI event handlers
@@ -349,7 +359,28 @@ class WorkflowWindow(QMainWindow):
             return
         task_id = current.data(Qt.UserRole)
         task_key = current.data(Qt.UserRole + 1)
+        self.more_info_btn.setEnabled(True)
         self.show_task_params(task_key, task_id)
+
+    def _open_more_info(self) -> None:
+        if not self.current_workflow_id:
+            return
+        task_id = self.current_workflow_id
+        task = self.task_by_id[task_id]
+        current_docs_path = task.doc_path
+        try:
+            if not self._docs_server.is_running:
+                self._docs_server.start()
+
+            if current_docs_path is not None:
+                url = str(Path(self._docs_server.base_url(), current_docs_path))
+            else:
+                return
+            QDesktopServices.openUrl(QUrl(url))
+
+        except Exception as e:
+            # you already have append_log
+            self.append_log(f"Could not open docs: {e}")
 
 
     # --------------------------------------------------------------------------------
@@ -469,6 +500,15 @@ class WorkflowWindow(QMainWindow):
         del self.task_by_id[task_id]
 
         self._on_zarr_image_changed()
+
+        if self.workflow_list.count() == 0:
+            while self.form_layout.rowCount():
+                self.form_layout.removeRow(0)
+                self.more_info_btn.setEnabled(False)
+            self.current_param_widgets = None
+            self.current_task_key = None
+            self.current_workflow_id = None
+            self.params_title.setText("Select a workflow task to edit parameters.")
 
     def move_up(self) -> None:
         row = self.workflow_list.currentRow()

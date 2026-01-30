@@ -7,6 +7,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, get_type_hints
 from pydantic import BaseModel, create_model
 from dataclasses import dataclass
+from pathlib import Path
 
 
 HIDDEN_WORKFLOW_FIELDS = {"zarr_dir", "zarr_url", "zarr_urls"}
@@ -22,7 +23,7 @@ class TaskSpec:
     category: str
     package: str
     module: str
-    doc_path: Optional[str]
+    doc_path: Optional[str|Path]
 
 def _parse_doc_fn_description(fn: Callable[..., Any]) -> str:
     doc = inspect.getdoc(fn) or ""
@@ -143,6 +144,7 @@ def build_task_specs(fns: List[Callable[..., Any]], category: str) -> List[TaskS
     specs: List[TaskSpec] = []
     for fn in fns:
         package = fn.__module__.split(".")[0]
+        doc_path = Path(category, "tasks", fn.__name__)
         specs.append(
             TaskSpec(
                 key=fn.__name__,
@@ -154,7 +156,7 @@ def build_task_specs(fns: List[Callable[..., Any]], category: str) -> List[TaskS
                 category=category,
                 module=fn.__module__,
                 package=package,
-                doc_path=None
+                doc_path=doc_path
             )
         )
     return specs
