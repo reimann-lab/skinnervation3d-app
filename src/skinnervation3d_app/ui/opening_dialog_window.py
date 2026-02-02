@@ -24,7 +24,7 @@ class OpeningDialog(QDialog):
         self.dir_line.setReadOnly(True)
 
         # Default path (shown immediately)
-        self.default_dir = Path.home() / "Documents" / "SkInnervationProject" / "Data" / "Multitile"
+        self.default_dir = Path.home() / "Documents" / "Data"
         self.dir_line.setPlaceholderText("No directory selected")
 
         choose_btn = QPushButton("Choose directory…")
