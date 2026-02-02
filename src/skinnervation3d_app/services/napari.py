@@ -17,7 +17,7 @@ def launch_napari_in_conda_env(
 
     if sys.platform == "win32":
         env_root = CONDA_NAPARI_ENV_ROOT
-        python_exe = env_root / "python.exe"
+        python_exe = env_root / "pythonw.exe"
         scripts_dir = env_root / "Scripts"
         lib_dir = env_root / "Library" / "bin"
         args = [str(python_exe), "-m", "napari"]

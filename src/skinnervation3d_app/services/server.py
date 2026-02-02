@@ -73,7 +73,7 @@ class DocsServer:
     def make_url_crossplatform(self, 
         doc_path: str
     ) -> str:
-        base = self.base_url.rstrip("/") + "/"
+        base = self.base_url().rstrip("/") + "/"
         
         p = Path(doc_path)
         if p.is_absolute():
