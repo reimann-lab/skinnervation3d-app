@@ -20,7 +20,6 @@ class AppController:
         self.workflow_win: Optional[WorkflowWindow] = None
 
         app_root = Path(__file__).resolve().parents[2]
-        print(app_root)
         docs_root = app_root / "resources" / "docs"
 
         self.docs_server = DocsServer(docs_root=docs_root)

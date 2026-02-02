@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 from pydantic import BaseModel, ValidationError
 import logging
+from datetime import datetime
 
 from PySide6.QtCore import Signal, Slot, Qt, QThread, QUrl
 from PySide6.QtGui import QDesktopServices
@@ -53,6 +54,11 @@ class WorkflowWindow(QMainWindow):
         self.setWindowTitle("Workflow Runner — Workflow")
 
         self.analysis_dir = analysis_dir
+        self.log_path = analysis_dir / "logs"
+        if not self.log_path.exists():
+            self.log_path.mkdir()
+        self.date = datetime.now().strftime("%Y-%m-%d_%H:%M")
+        self.workflow_log_path = self.log_path / f"workflow_{self.date}.log"
         self.selected_image: Optional[Path] = None
         self.tasks = tasks
         self.tasks_by_key: Dict[str, TaskSpec] = {t.key: t for t in self.tasks}
@@ -157,7 +163,7 @@ class WorkflowWindow(QMainWindow):
             item.setData(Qt.UserRole + 1, t.key)
             item.setToolTip(t.description)
             self.analysis_list.addItem(item)
-        left_layout.addWidget(self.pre_list_title)
+        left_layout.addWidget(self.analysis_list_title)
         left_layout.addWidget(self.analysis_list)
         left_layout.addStretch(1)
 
@@ -613,8 +619,7 @@ class WorkflowWindow(QMainWindow):
 
     # --- autofill common args (zarr_urls/zarr_dir) ---
     def _autofill_common_params_for_task_stale(self, task_id: str) -> None:
-        widgets = self.param_widgets[task_id]
-        chosen_zarr_image = str(self.zarr_image_combo.currentData()) if self.zarr_image_combo.currentData() else ""
+        widgets = self.param_widgets[task_id] 
 
         # zarr_dir
         if "zarr_dir" in widgets and isinstance(widgets["zarr_dir"], QLineEdit):
@@ -703,12 +708,23 @@ class WorkflowWindow(QMainWindow):
         self.log_handler.setFormatter(
             logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
         )
+        
+        self.file_handler_tasks = logging.FileHandler(self.log_path / f"tasks_{self.date}.log")
+        self.file_handler_tasks.setLevel(logging.INFO)
+        self.file_handler_tasks.setFormatter(
+            logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+        )
+
         skin3d_logger = logging.getLogger("skinnervation3d_fractal_tasks")
+        skin3d_logger.propagate = False
         skin3d_logger.addHandler(self.log_handler)
+        skin3d_logger.addHandler(self.file_handler_tasks)
         skin3d_logger.setLevel(logging.INFO)
 
         mesospim_logger = logging.getLogger("mesospim_fractal_tasks")
+        mesospim_logger.propagate = False
         mesospim_logger.addHandler(self.log_handler)
+        mesospim_logger.addHandler(self.file_handler_tasks)
         mesospim_logger.setLevel(logging.INFO)
 
         self._gui_log_handler = self.log_handler
@@ -763,9 +779,12 @@ class WorkflowWindow(QMainWindow):
             title = txt.split(" ", 1)[1] if " " in txt else txt
             self.status_list.item(i).setText(f"⏳ {title}")
 
-        # --- logging ---
+    # --- logging ---
     def append_log(self, msg: str) -> None:
         self.log_view.append(str(msg))
+        with self.workflow_log_path.open("a") as f:
+            f.write(msg + "\n")
+            f.flush()
 
     # --- freeze/unfreeze ---
     def freeze_ui(self, frozen: bool) -> None:
@@ -829,8 +848,13 @@ class WorkflowWindow(QMainWindow):
 
         skin3d_logger = logging.getLogger("skinnervation3d_app")
         skin3d_logger.removeHandler(self._gui_log_handler)
+        skin3d_logger.propagate = True
         mesospim_logger = logging.getLogger("mesospim_fractal_tasks")
         mesospim_logger.removeHandler(self._gui_log_handler)
+        mesospim_logger.propagate = True
+
+        self.date = datetime.now().strftime("%Y-%m-%d_%H:%M")
+        self.workflow_log_path = self.log_path / f"workflow_{self.date}.log"
 
         self._gui_log_handler.close()
         self._gui_log_handler = None

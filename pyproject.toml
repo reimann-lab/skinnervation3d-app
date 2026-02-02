@@ -60,6 +60,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "hatch",
+  "hatch-vcs",
   "pytest",
   "pytest-mock",
   "ruff",

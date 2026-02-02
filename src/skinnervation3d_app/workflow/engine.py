@@ -60,6 +60,15 @@ def _chain_zarr_url(task_model_cls: type[BaseModel], params: BaseModel, last_pat
     data["zarr_url"] = str(last_paths[0])
     return task_model_cls(**data)
 
+def pretty_dict_display(d: dict[str, Any]) -> str:
+    text = ""
+    for k, v in d.items():
+        if isinstance(v, dict):
+            text = text + f"  {k}:\n"
+            text = text + f"    {pretty_dict_display(v)}"
+        else:
+            text += f"  {k}: {v}\n"
+    return text
 
 def run_workflow(
     *,
@@ -92,7 +101,7 @@ def run_workflow(
     last_paths: Optional[list[Path]] = None
     last_output: Any = None
 
-    _log(hooks, f"=== Workflow started ({total} task(s)) ===")
+    _log(hooks, f"\n=== Workflow started ({total} task(s)) ===")
     _log(hooks, f"Directory: {analysis_dir}")
 
     try:
@@ -114,8 +123,9 @@ def run_workflow(
             if hooks.on_task_started:
                 hooks.on_task_started(idx, total, task.title)
             _log(hooks, f"[{idx}/{total}] START {task.title}")
-            _log(hooks, f"  Parameters: {params_model.model_dump()}")
-            _log(hooks, "-" * 79)
+            _log(hooks, f"Parameters:\n")
+            _log(hooks, f"{pretty_dict_display(params_model.model_dump())}")
+            _log(hooks, "-" * 79 + "\n")
 
             # Execute
             out = task.fn(**params_model.model_dump())
@@ -169,5 +179,5 @@ def run_workflow(
         last_paths = None
         _log(hooks, "ERROR:\n" + traceback.format_exc())
 
-    _log(hooks, f"=== Workflow finished: {final} ===")
+    _log(hooks, f"=== Workflow finished: {final} ===\n")
     return WorkflowResult(ok=ok, final=final, last_paths=last_paths, last_output=last_output)

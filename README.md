@@ -60,6 +60,6 @@ Some dependencies are not publicly available and must be provided separately (wh
     ```
     mamba env create -f environment_napari.yml
     mamba activate napari-crop
-    pip install napari-crop-tool-*.whl
+    pip install napari_crop_tool-*.whl
     ```
 

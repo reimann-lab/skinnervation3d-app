@@ -1,5 +1,4 @@
 from __future__ import annotations
-import sys
 
 def main() -> int:
     from .app import run_app
