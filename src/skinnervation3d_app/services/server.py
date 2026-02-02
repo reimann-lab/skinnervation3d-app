@@ -6,6 +6,7 @@ import socketserver
 import threading
 from functools import partial
 from pathlib import Path
+from urllib.parse import urljoin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -68,3 +69,19 @@ class DocsServer:
         self.httpd = None
         self.port = None
         self.thread = None
+
+    def make_url_crossplatform(self, 
+        doc_path: str
+    ) -> str:
+        base = self.base_url.rstrip("/") + "/"
+        
+        p = Path(doc_path)
+        if p.is_absolute():
+            try:
+                rel = p.relative_to(self.docs_root.resolve()).as_posix()
+            except ValueError:
+                # doc_roots is not a subdirectory of p
+                rel = p.as_posix().lstrip("/")
+        else:
+            rel = p.as_posix()
+        return urljoin(base, rel)

@@ -379,7 +379,9 @@ class WorkflowWindow(QMainWindow):
                 self._docs_server.start()
 
             if current_docs_path is not None:
-                url = str(Path(self._docs_server.base_url(), current_docs_path))
+                url = self._docs_server.make_url_crossplatform(
+                    current_docs_path
+                )
             else:
                 return
             QDesktopServices.openUrl(QUrl(url))
@@ -634,8 +636,6 @@ class WorkflowWindow(QMainWindow):
         if "zarr_urls" in widgets and isinstance(widgets["zarr_urls"], QTextEdit):
             #widgets["zarr_urls"].setPlainText(chosen_zarr_image)
             widgets["zarr_urls"].setEnabled(False)
-
-
 
     def collect_params_model_for_row(self, row: int) -> BaseModel:
         task_id = self.workflow_ids[row]
