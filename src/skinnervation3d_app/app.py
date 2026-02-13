@@ -1,7 +1,14 @@
 from __future__ import annotations
 import os
-import logging
+
 os.environ["QT_API"] = "pyside6"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # macOS
+os.environ["BLIS_NUM_THREADS"] = "1"
+
 import sys
 from typing import Optional
 from pathlib import Path
@@ -12,6 +19,7 @@ from skinnervation3d_app.services.napari import launch_napari_in_conda_env
 from skinnervation3d_app.services.server import DocsServer
 from skinnervation3d_app.tasks.registry import TASKS
 
+import logging
 logger = logging.getLogger(__name__)
 
 class AppController:
