@@ -26,9 +26,7 @@ def launch_napari_in_conda_env(
         if lib_dir.exists():
             prepend.append(str(lib_dir))
         child_env["PATH"] = os.pathsep.join(prepend + [child_env.get("PATH", "")])
-    elif sys.platform == "darwin":
-        args = ["conda", "run", "-n", CONDA_NAPARI_ENV_NAME, "napari"]
-    elif sys.platform == "linux":
+    elif ((sys.platform == "darwin") or (sys.platform == "linux")):
         args = ["conda", "run", "-n", CONDA_NAPARI_ENV_NAME, "napari"]
     else:
         raise RuntimeError(f"Unsupported platform: {sys.platform}")

@@ -4,11 +4,11 @@ from mesospim_fractal_tasks.tasks import (crop_regions_of_interest_dask,
                                           correct_illumination_dask,
                                           stitch_with_multiview_stitcher, 
                                           mesospim_to_omezarr)
-from skinnervation3d_fractal_tasks.tasks import (fit_surface,
-                                                 segment_fibers,
+from skinnervation3d_fractal_tasks.tasks import (fit_surface_dask,
+                                                 segment_fibers_dask,
                                                  analyse_fiber_plexus,
-                                                 compute_fiber_density_per_structure,
-                                                 count_number_fiber_crossing)
+                                                 compute_fiber_density_per_structure_dask,
+                                                 count_number_fiber_crossing_dask)
 from skinnervation3d_app.tasks.spec import TaskSpec, build_task_specs
 
 
@@ -21,11 +21,11 @@ PREPROCESSING_TASK_FUNCTIONS: List[Callable[..., Any]] = [
 ]
 
 ANALYSIS_TASK_FUNCTIONS: List[Callable[..., Any]] = [
-    fit_surface.fit_surface,
-    segment_fibers.segment_fibers,
-    count_number_fiber_crossing.count_number_fiber_crossing,
-    compute_fiber_density_per_structure.compute_fiber_density_per_structure,
-    analyse_fiber_plexus.analyse_fiber_plexus,
+    fit_surface_dask.fit_surface,
+    segment_fibers_dask.segment_fibers,
+    count_number_fiber_crossing_dask.count_number_fiber_crossing,
+    compute_fiber_density_per_structure_dask.compute_fiber_density_per_structure,
+    #analyse_fiber_plexus.analyse_fiber_plexus,
 ]
 
 PRE_TASKS: List[TaskSpec] = build_task_specs(
