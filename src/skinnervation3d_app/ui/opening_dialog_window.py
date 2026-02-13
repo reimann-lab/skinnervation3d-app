@@ -6,6 +6,8 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QFileDialog)
 
+from skinnervation3d_app.config import ANALYSIS_DIR_INIT
+
 class OpeningDialog(QDialog):
     dir_selected = Signal(Path)
 
@@ -24,7 +26,7 @@ class OpeningDialog(QDialog):
         self.dir_line.setReadOnly(True)
 
         # Default path (shown immediately)
-        self.default_dir = Path.home() / "Documents" / "Data"
+        self.default_dir = ANALYSIS_DIR_INIT
         self.dir_line.setPlaceholderText("No directory selected")
 
         choose_btn = QPushButton("Choose directory…")
