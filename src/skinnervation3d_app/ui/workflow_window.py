@@ -706,7 +706,7 @@ class WorkflowWindow(QMainWindow):
         self.log_handler.setLevel(logging.INFO)
         self.log_handler.setFormatter(
             logging.Formatter("| %(asctime)s | %(levelname)s | %(message)s",
-                              datefmt="%Y-%m-%d | %M:%S")
+                              datefmt="%Y-%m-%d | %H:%M:%S")
         )
         
         date = datetime.now().strftime("%Y-%m-%d_%Hh%M")
@@ -715,7 +715,7 @@ class WorkflowWindow(QMainWindow):
         self.file_handler_tasks.setLevel(logging.INFO)
         self.file_handler_tasks.setFormatter(
             logging.Formatter("| %(asctime)s | %(levelname)s | %(message)s",
-                              datefmt="%Y-%m-%d | %M:%S")
+                              datefmt="%Y-%m-%d | %H:%M:%S")
         )
         self.workflow_log_path = self.log_path / f"workflow_{date}.log"
 

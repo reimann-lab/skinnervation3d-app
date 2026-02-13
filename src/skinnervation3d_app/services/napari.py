@@ -31,6 +31,7 @@ def launch_napari_in_conda_env(
     else:
         raise RuntimeError(f"Unsupported platform: {sys.platform}")
     if zarr_paths:
+        args.append("--plugin napari-ome-zarr")
         for p in zarr_paths:
             args.append(str(p))
 
