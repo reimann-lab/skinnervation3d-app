@@ -57,8 +57,7 @@ class WorkflowWindow(QMainWindow):
         self.log_path = analysis_dir / "logs"
         if not self.log_path.exists():
             self.log_path.mkdir()
-        self.date = datetime.now().strftime("%Y-%m-%d_%H:%M")
-        self.workflow_log_path = self.log_path / f"workflow_{self.date}.log"
+        self.workflow_log_path = None
         self.selected_image: Optional[Path] = None
         self.tasks = tasks
         self.tasks_by_key: Dict[str, TaskSpec] = {t.key: t for t in self.tasks}
@@ -682,7 +681,7 @@ class WorkflowWindow(QMainWindow):
             params_model = self.collect_params_model_for_row(row)  # validates
             plan.append(PlanItem(task, params_model))
         return WorkflowPlan(items=plan)
-
+    
 
 
 
@@ -706,14 +705,19 @@ class WorkflowWindow(QMainWindow):
         self.log_handler = QtLogHandler(self.log_emitter)
         self.log_handler.setLevel(logging.INFO)
         self.log_handler.setFormatter(
-            logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+            logging.Formatter("| %(asctime)s | %(levelname)s | %(message)s",
+                              datefmt="%Y-%m-%d | %M:%S")
         )
         
-        self.file_handler_tasks = logging.FileHandler(self.log_path / f"tasks_{self.date}.log")
+        date = datetime.now().strftime("%Y-%m-%d_%Hh%M")
+        task_log_path = self.log_path / f"tasks_{date}.log"
+        self.file_handler_tasks = logging.FileHandler(str(task_log_path))
         self.file_handler_tasks.setLevel(logging.INFO)
         self.file_handler_tasks.setFormatter(
-            logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+            logging.Formatter("| %(asctime)s | %(levelname)s | %(message)s",
+                              datefmt="%Y-%m-%d | %M:%S")
         )
+        self.workflow_log_path = self.log_path / f"workflow_{date}.log"
 
         skin3d_logger = logging.getLogger("skinnervation3d_fractal_tasks")
         skin3d_logger.propagate = False
@@ -737,7 +741,7 @@ class WorkflowWindow(QMainWindow):
 
         self.reset_status()
         self.freeze_ui(True)
-        self.append_log("Starting workflow…")
+        self.append_log("Starting workflow…\n")
 
         #email_cfg = load_email_config(self.email_to.text())
         #if email_cfg.enabled and not email_cfg.smtp_host:
@@ -762,7 +766,6 @@ class WorkflowWindow(QMainWindow):
         if self.thread is not None:
             self.thread.started.connect(self.worker.run)
             self.worker.log.connect(self.append_log, Qt.QueuedConnection)
-            self.worker.task_started.connect(self.on_task_started)
             self.worker.task_finished.connect(self.on_task_finished)
             self.worker.finished.connect(self.on_finished)
 
@@ -770,7 +773,7 @@ class WorkflowWindow(QMainWindow):
 
     def interrupt_workflow(self) -> None:
         if self.worker:
-            self.append_log("Interruption requested…")
+            self.append_log("Interruption requested…\n")
             self.worker.interrupt()
 
     def reset_status(self) -> None:
@@ -782,9 +785,10 @@ class WorkflowWindow(QMainWindow):
     # --- logging ---
     def append_log(self, msg: str) -> None:
         self.log_view.append(str(msg))
-        with self.workflow_log_path.open("a") as f:
-            f.write(msg + "\n")
-            f.flush()
+        if self.workflow_log_path is not None and not msg.startswith("| "):
+            with self.workflow_log_path.open("a") as f:
+                f.write(msg + "\n")
+                f.flush()
 
     # --- freeze/unfreeze ---
     def freeze_ui(self, frozen: bool) -> None:
@@ -808,10 +812,6 @@ class WorkflowWindow(QMainWindow):
                 widget.setEnabled(not frozen)
 
     @Slot(int, int, str)
-    def on_task_started(self, idx: int, total: int, title: str) -> None:
-        self.append_log(f"Running {idx}/{total}: {title}")
-
-    @Slot(int, int, str)
     def on_task_finished(self, idx: int, total: int, title: str) -> None:
         row = idx - 1
         if 0 <= row < self.status_list.count():
@@ -824,8 +824,7 @@ class WorkflowWindow(QMainWindow):
                 txt = self.status_list.item(i).text()
                 if txt.startswith("⏳ "):
                     self.status_list.item(i).setText(txt.replace("⏳", "⛔", 1))
-
-        self.append_log(f"Workflow finished: {msg}")
+        
         self.freeze_ui(False)
 
         t = self.thread
@@ -846,15 +845,15 @@ class WorkflowWindow(QMainWindow):
         if self._gui_log_handler is None:
             return
 
-        skin3d_logger = logging.getLogger("skinnervation3d_app")
+        skin3d_logger = logging.getLogger("skinnervation3d_fractal_tasks")
         skin3d_logger.removeHandler(self._gui_log_handler)
         skin3d_logger.propagate = True
         mesospim_logger = logging.getLogger("mesospim_fractal_tasks")
         mesospim_logger.removeHandler(self._gui_log_handler)
         mesospim_logger.propagate = True
 
-        self.date = datetime.now().strftime("%Y-%m-%d_%H:%M")
-        self.workflow_log_path = self.log_path / f"workflow_{self.date}.log"
+        self.workflow_log_path = None
+        #self.append_log(f"Workflow finished: {msg}\n")
 
         self._gui_log_handler.close()
         self._gui_log_handler = None

@@ -101,8 +101,9 @@ def run_workflow(
     last_paths: Optional[list[Path]] = None
     last_output: Any = None
 
-    _log(hooks, f"\n=== Workflow started ({total} task(s)) ===")
-    _log(hooks, f"Directory: {analysis_dir}")
+    _log(hooks, f"=== Workflow started ({total} task(s)) ===\n")
+    _log(hooks, f"Analysis Directory: {analysis_dir}\n")
+    _log(hooks, "-" * 79 + "\n")
 
     try:
         for idx, item in enumerate(plan.items, start=1):
@@ -122,10 +123,9 @@ def run_workflow(
 
             if hooks.on_task_started:
                 hooks.on_task_started(idx, total, task.title)
-            _log(hooks, f"[{idx}/{total}] START {task.title}")
-            _log(hooks, f"Parameters:\n")
+            _log(hooks, f"[{idx}/{total}] START {task.title}\n")
+            _log(hooks, f"Parameters:")
             _log(hooks, f"{pretty_dict_display(params_model.model_dump())}")
-            _log(hooks, "-" * 79 + "\n")
 
             # Execute
             out = task.fn(**params_model.model_dump())
@@ -134,7 +134,8 @@ def run_workflow(
             # Extract outputs for chaining / visualization
             last_paths = extract_output_paths(out)
 
-            _log(hooks, f"[{idx}/{total}] DONE  {task.title}")
+            _log(hooks, f"\n[{idx}/{total}] DONE  {task.title}\n")
+            _log(hooks, "-" * 79 + "\n")
             if hooks.on_task_finished:
                 hooks.on_task_finished(idx, total, task.title)
 
@@ -148,8 +149,9 @@ def run_workflow(
                     paths_to_open = [selected_image.parent / selected_image.name]
             else:
                 paths_to_open = [p.parent / p.name for p in last_paths]
-            paths_str = ", ".join(map(str, paths_to_open))
-            _log(hooks, f"Output visualization: opening in Napari: " + paths_str)
+            #paths_str = ", ".join(map(str, paths_to_open))
+            #
+            #_log(hooks, f"Output visualization: opening in Napari: " + paths_str)
             try:
                 visualize_fn(analysis_dir=analysis_dir, 
                              zarr_paths=paths_to_open) 
