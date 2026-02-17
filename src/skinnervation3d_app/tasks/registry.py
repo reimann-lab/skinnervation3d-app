@@ -8,7 +8,8 @@ from skinnervation3d_fractal_tasks.tasks import (fit_surface_dask,
                                                  segment_fibers_dask,
                                                  analyse_fiber_plexus,
                                                  compute_fiber_density_per_structure_dask,
-                                                 count_number_fiber_crossing_dask)
+                                                 count_number_fiber_crossing_dask,
+                                                 export_results)
 from skinnervation3d_app.tasks.spec import TaskSpec, build_task_specs
 
 
@@ -25,6 +26,7 @@ ANALYSIS_TASK_FUNCTIONS: List[Callable[..., Any]] = [
     segment_fibers_dask.segment_fibers,
     count_number_fiber_crossing_dask.count_number_fiber_crossing,
     compute_fiber_density_per_structure_dask.compute_fiber_density_per_structure,
+    export_results.export_results
     #analyse_fiber_plexus.analyse_fiber_plexus,
 ]
 
