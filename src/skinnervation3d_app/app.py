@@ -12,6 +12,8 @@ os.environ["BLIS_NUM_THREADS"] = "1"
 import sys
 from typing import Optional
 from pathlib import Path
+from contextlib import ExitStack
+from importlib.resources import as_file, files
 from PySide6.QtWidgets import QApplication, QDialog
 from skinnervation3d_app.ui.workflow_window import WorkflowWindow
 from skinnervation3d_app.ui.opening_dialog_window import OpeningDialog
@@ -27,10 +29,13 @@ class AppController:
         self.tasks = tasks
         self.workflow_win: Optional[WorkflowWindow] = None
 
-        app_root = Path(__file__).resolve().parents[2]
-        docs_root = app_root / "resources" / "docs"
+        # Keep it alive for the lifetime of the app:
+        self._resource_stack = ExitStack()
 
-        self.docs_server = DocsServer(docs_root=docs_root)
+        docs_root_traversable = files("skinnervation3d_app").joinpath("resources/docs")
+        docs_root_path: Path = self._resource_stack.enter_context(as_file(docs_root_traversable))
+
+        self.docs_server = DocsServer(docs_root=docs_root_path)
 
     def start(self) -> None:
         self._show_opening_dialog()
@@ -84,6 +89,8 @@ def run_app() -> int:
     app = QApplication(sys.argv)
 
     controller = AppController(TASKS)
+    app.aboutToQuit.connect(controller.docs_server.stop)
+    app.aboutToQuit.connect(lambda: controller._resource_stack.close())  # <- closes ExitStack
 
     # Stop docs server when the app is quitting
     app.aboutToQuit.connect(controller.docs_server.stop)

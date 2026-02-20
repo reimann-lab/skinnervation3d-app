@@ -15,7 +15,6 @@ packages = ["src/skinnervation3d_app"]
 exclude = [
     "data",
     "Data",
-    "docs",
     "tests",
     "examples",
     "*.zarr",
@@ -29,6 +28,9 @@ exclude = [
     "*.jpeg",
     "*.mp4",
     "*.mov",
+]
+artifacts = [
+  "src/skinnervation3d_app/resources/docs/**",
 ]
 
 [tool.hatch.build]
