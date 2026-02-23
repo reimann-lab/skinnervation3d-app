@@ -42,3 +42,9 @@ class TupleWidget(QWidget):
                 raise ValueError(f"Invalid tuple element ({t}): {e}") from e
             out.append(v)
         return tuple(out)
+    
+    def set_value(self, val: tuple | list) -> None:
+        items = list(val) if isinstance(val, (tuple, list)) else [None] * len(self.widgets)
+        for w, v in zip(self.widgets, items):
+            from skinnervation3d_app.ui.param_widgets.leaf import set_leaf_widget_value
+            set_leaf_widget_value(w, v)

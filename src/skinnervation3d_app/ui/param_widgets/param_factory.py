@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
 from skinnervation3d_app.ui.param_widgets.optional import OptionalWrapperWidget
 from skinnervation3d_app.ui.param_widgets.tuple_widget import TupleWidget
 from skinnervation3d_app.ui.param_widgets.list_widget import ListWidget
-from skinnervation3d_app.ui.param_widgets.leaf import build_leaf_widget, read_leaf_widget_value
+from skinnervation3d_app.ui.param_widgets.leaf import (
+    build_leaf_widget, read_leaf_widget_value, set_leaf_widget_value)
 from skinnervation3d_app.tasks.spec import (
     HIDDEN_WORKFLOW_FIELDS,
     _parse_doc_param_description)
@@ -180,7 +181,7 @@ def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
         return widget.value()
     
     if isinstance(widget, CustomModelWidget):
-        return widget.value_model()
+        return widget.value_dict()
 
     # Leaf
     raw = read_leaf_widget_value(widget)
@@ -190,3 +191,24 @@ def read_widget_value(widget: QWidget, expected_type: Any) -> Any:
         return TypeAdapter(base).validate_python(raw)
     except ValidationError as e:
         raise ValueError(f"Invalid value for {base}: {e}") from e
+    
+def set_widget_value(w: QWidget, val: Any) -> None:
+    if isinstance(w, OptionalWrapperWidget):
+        if val is None:
+            w.set_enabled(False)
+            return
+        w.set_enabled(True)
+        w = w.inner
+
+    if isinstance(w, ListWidget):
+        w._items = list(val) if isinstance(val, list) else []
+        w._refresh_from_items()
+    elif isinstance(w, TupleWidget):
+        w.set_value(val)
+    elif isinstance(w, CustomModelWidget):
+        if isinstance(val, dict):
+            for fname, fw in w.widgets.items():
+                if fname in val:
+                    set_widget_value(fw, val[fname])
+    else:
+        set_leaf_widget_value(w, val)  # handles QSpinBox, QDoubleSpinBox, QCheckBox, QLineEdit

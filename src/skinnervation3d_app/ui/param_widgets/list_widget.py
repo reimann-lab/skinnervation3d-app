@@ -65,7 +65,9 @@ class ListWidget(QWidget):
     def _refresh_from_items(self):
         self.view.clear()
         for it in self._items:
-            self.view.addItem(QListWidgetItem(str(it)))
+            item = QListWidgetItem(str(it))
+            item.setData(Qt.UserRole, it)  # <-- was missing
+            self.view.addItem(item)
 
     def _sync_items_from_view(self):
         # If reorder is enabled, reflect current GUI order back into _items
@@ -97,8 +99,8 @@ class ListWidget(QWidget):
         self._refresh_from_items()
         
         # Store typed values in item UserRole for robust re-sync after reorder:
-        for i, v in enumerate(self._items):
-            self.view.item(i).setData(Qt.UserRole, v)
+        #for i, v in enumerate(self._items):
+        #    self.view.item(i).setData(Qt.UserRole, v)
 
     def split_tokens(self, text: str) -> list[str]:
         text = text.strip()

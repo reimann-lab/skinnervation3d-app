@@ -38,6 +38,7 @@ from skinnervation3d_app.tasks.spec import HIDDEN_WORKFLOW_FIELDS
 from skinnervation3d_app.ui.param_widgets.param_factory import (
     build_widgets_from_model,
     read_widget_value,
+    set_widget_value,
 )
 from skinnervation3d_app.ui.logging import QtLogEmitter, QtLogHandler
 from skinnervation3d_app.services.server import DocsServer
@@ -584,7 +585,7 @@ class WorkflowWindow(QMainWindow):
         saved = self.params_by_id.get(task_id, {})
         for name, w in widgets.items():
             if name in saved:
-                self._set_widget_value(w, saved[name])
+                set_widget_value(w, saved[name])
 
         # store current widgets for reading later
         self.current_param_widgets = widgets
@@ -597,7 +598,7 @@ class WorkflowWindow(QMainWindow):
                 continue
             self.form_layout.addRow(name, widgets[name])
 
-    def _set_widget_value(self, w: QWidget, val: Any) -> None:
+    def _set_widget_value_v0(self, w: QWidget, val: Any) -> None:
         if isinstance(w, QSpinBox):
             w.setValue(int(val))
         elif isinstance(w, QDoubleSpinBox):

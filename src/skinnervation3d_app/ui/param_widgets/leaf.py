@@ -50,3 +50,18 @@ def read_leaf_widget_value(widget: QWidget) -> Any:
         return txt
 
     raise TypeError(f"Unsupported leaf widget: {type(widget)}")
+
+def set_leaf_widget_value(widget: QWidget, val: Any) -> None:
+    if isinstance(widget, QSpinBox):
+        if val is not None:
+            widget.setValue(int(val))
+    elif isinstance(widget, QDoubleSpinBox):
+        if val is not None:
+            widget.setValue(float(val))
+    elif isinstance(widget, QCheckBox):
+        if val is not None:
+            widget.setChecked(bool(val))
+    elif isinstance(widget, QLineEdit):
+        widget.setText("" if val is None else str(val))
+    else:
+        raise TypeError(f"Unsupported leaf widget: {type(widget)}")

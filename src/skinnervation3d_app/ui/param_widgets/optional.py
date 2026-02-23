@@ -30,3 +30,7 @@ class OptionalWrapperWidget(QWidget):
 
     def is_enabled(self) -> bool:
         return self.chk.isChecked()
+    
+    def set_enabled(self, enabled: bool) -> None:
+        self.chk.setChecked(enabled)
+        self.inner.setVisible(enabled)
