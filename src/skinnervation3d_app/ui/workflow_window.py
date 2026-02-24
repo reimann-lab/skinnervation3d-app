@@ -812,6 +812,28 @@ class WorkflowWindow(QMainWindow):
                 #for w in widgets.values():
                 widget.setEnabled(not frozen)
 
+    def closeEvent(self, event) -> None:
+        if self.thread is not None and self.thread.isRunning():
+            reply = QMessageBox.warning(
+                self,
+                "Workflow Running",
+                "A workflow is currently running. Are you sure you want to close?\n\n"
+                "This will interrupt the running task.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.interrupt_workflow()
+                # Give the thread a moment to stop cleanly
+                if self.thread is not None:
+                    self.thread.quit()
+                    self.thread.wait(3000)  # wait up to 3 seconds
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            event.accept()
+
     @Slot(int, int, str)
     def on_task_finished(self, idx: int, total: int, title: str) -> None:
         row = idx - 1
