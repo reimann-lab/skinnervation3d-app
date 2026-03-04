@@ -24,7 +24,6 @@ class WorkflowWorker(QObject):
         plan: WorkflowPlan,
         auto_visualize: bool,
         visualize_fn=launch_napari_in_conda_env,
-        email_fn=None, # later
     ):
         super().__init__()
         self.analysis_dir = analysis_dir
@@ -33,7 +32,6 @@ class WorkflowWorker(QObject):
         self.auto_visualize = auto_visualize
         self._interrupt = InterruptFlag()
         self._visualize_fn = visualize_fn
-        self._email_fn = email_fn
 
     def interrupt(self) -> None:
         self._interrupt.interrupt()
@@ -52,7 +50,6 @@ class WorkflowWorker(QObject):
             auto_visualize=self.auto_visualize,
             hooks=hooks,
             interrupt=self._interrupt,
-            visualize_fn=self._visualize_fn,
-            email_fn=self._email_fn,
+            visualize_fn=self._visualize_fn
         )
         self.finished.emit(result.ok, result.final)

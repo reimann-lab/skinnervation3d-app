@@ -42,6 +42,8 @@ from skinnervation3d_app.ui.param_widgets.param_factory import (
 )
 from skinnervation3d_app.ui.logging import QtLogEmitter, QtLogHandler
 from skinnervation3d_app.services.server import DocsServer
+from skinnervation3d_app.ui.channel_settings_window import ChannelSettingsDialog
+from skinnervation3d_app.settings.channel_settings import ensure_default_channel_presets_copied
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +88,6 @@ class WorkflowWindow(QMainWindow):
         self.append_log("Ready.")
 
         self._populate_images_choices()         # initial zarr image display
-
 
 
 
@@ -215,11 +216,17 @@ class WorkflowWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.form_container)
         right_layout.addWidget(scroll)
+
+
         
         docs_row = QHBoxLayout()
+        self.channel_settings_btn = QPushButton("Add/modify channel settings")
+        self.channel_settings_btn.setVisible(False)  # hidden by default
+        self.channel_settings_btn.clicked.connect(self._on_change_channel_settings_clicked)
         self.more_info_btn = QPushButton("More info…")
         self.more_info_btn.setEnabled(False)
         self.more_info_btn.clicked.connect(self._open_more_info)
+        docs_row.addWidget(self.channel_settings_btn)
         docs_row.addStretch(1)
         docs_row.addWidget(self.more_info_btn)
         right_layout.addLayout(docs_row)
@@ -251,13 +258,6 @@ class WorkflowWindow(QMainWindow):
         self.auto_vis_chk.setChecked(False)
         run_row.addWidget(self.auto_vis_chk)
         run_row.addSpacing(12)
-
-        #run_row.addWidget(QLabel("Email to:"))
-        self.email_to = QLineEdit()
-        self.email_to.setPlaceholderText("optional@example.org")
-        self.email_to.setFixedWidth(240)
-        self.email_to.setVisible(False)
-        run_row.addWidget(self.email_to)
         run_row.addStretch(1)
 
         main_layout.addLayout(run_row)
@@ -389,6 +389,23 @@ class WorkflowWindow(QMainWindow):
         except Exception as e:
             # you already have append_log
             self.append_log(f"Could not open docs: {e}")
+
+    def _workflow_has_channel_settings_task(self) -> bool:
+        target = {"mesospim_to_omezarr", "prepare_mesospim_omezarr"}
+        for task_id in self.workflow_ids:
+            task = self.task_by_id.get(task_id)
+            if task and task.key in target:
+                return True
+        return False
+
+    def _update_channel_settings_button_visibility(self) -> None:
+        if hasattr(self, "channel_settings_btn"):
+            self.channel_settings_btn.setVisible(self._workflow_has_channel_settings_task())
+
+    def _on_change_channel_settings_clicked(self) -> None:
+        settings_dir = ensure_default_channel_presets_copied()
+        dlg = ChannelSettingsDialog(self, settings_dir=settings_dir)
+        dlg.exec()
 
 
     # --------------------------------------------------------------------------------
@@ -597,6 +614,8 @@ class WorkflowWindow(QMainWindow):
             if name in HIDDEN_WORKFLOW_FIELDS:
                 continue
             self.form_layout.addRow(name, widgets[name])
+        
+        self._update_channel_settings_button_visibility()
 
     def _set_widget_value_v0(self, w: QWidget, val: Any) -> None:
         if isinstance(w, QSpinBox):
@@ -744,17 +763,6 @@ class WorkflowWindow(QMainWindow):
         self.freeze_ui(True)
         self.append_log("Starting workflow…\n")
 
-        #email_cfg = load_email_config(self.email_to.text())
-        #if email_cfg.enabled and not email_cfg.smtp_host:
-        #    QMessageBox.warning(
-        #        self,
-        #        "Email not configured",
-        #        "Email address provided but SMTP env vars are missing.\n"
-        #        "Set WF_SMTP_HOST/WF_SMTP_PORT/WF_SMTP_USER/WF_SMTP_PASS.\n"
-        #        "Continuing without email.",
-        #    )
-        #    email_cfg = EmailConfig(False, "", "", 587, "", "")
-
         self.thread = QThread()
         self.worker = WorkflowWorker(
             analysis_dir=self.analysis_dir,
@@ -801,7 +809,6 @@ class WorkflowWindow(QMainWindow):
         self.up_btn.setEnabled(not frozen)
         self.down_btn.setEnabled(not frozen)
         self.auto_vis_chk.setEnabled(not frozen)
-        self.email_to.setEnabled(not frozen)
         self.zarr_image_combo.setEnabled(not frozen)
         self.run_btn.setEnabled(not frozen)
         self.interrupt_btn.setEnabled(frozen)
