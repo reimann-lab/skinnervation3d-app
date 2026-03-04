@@ -4,7 +4,8 @@ from mesospim_fractal_tasks.tasks import (crop_regions_of_interest_dask,
                                           correct_illumination_dask,
                                           stitch_with_multiview_stitcher, 
                                           mesospim_to_omezarr,
-                                          modify_omezarr_structure)
+                                          modify_omezarr_structure,
+                                          prepare_mesospim_omezarr)
 from skinnervation3d_fractal_tasks.tasks import (fit_surface,
                                                  segment_fibers_dask,
                                                  analyse_fiber_plexus,
@@ -16,6 +17,7 @@ from skinnervation3d_app.tasks.spec import TaskSpec, build_task_specs
 
 PREPROCESSING_TASK_FUNCTIONS: List[Callable[..., Any]] = [
     mesospim_to_omezarr.mesospim_to_omezarr,
+    prepare_mesospim_omezarr.prepare_mesospim_omezarr,
     correct_flatfield_dask.correct_flatfield,
     crop_regions_of_interest_dask.crop_regions_of_interest,
     correct_illumination_dask.correct_illumination,
