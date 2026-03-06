@@ -43,7 +43,8 @@ from skinnervation3d_app.ui.param_widgets.param_factory import (
 from skinnervation3d_app.ui.logging import QtLogEmitter, QtLogHandler
 from skinnervation3d_app.services.server import DocsServer
 from skinnervation3d_app.ui.channel_settings_window import ChannelSettingsDialog
-from skinnervation3d_app.settings.channel_settings import ensure_default_channel_presets_copied
+#from skinnervation3d_app.settings.channel_settings import ensure_default_channel_presets_copied
+from mesospim_fractal_tasks.settings.settings_manager import get_channel_settings_dir
 
 logger = logging.getLogger(__name__)
 
@@ -403,7 +404,7 @@ class WorkflowWindow(QMainWindow):
             self.channel_settings_btn.setVisible(self._workflow_has_channel_settings_task())
 
     def _on_change_channel_settings_clicked(self) -> None:
-        settings_dir = ensure_default_channel_presets_copied()
+        settings_dir = get_channel_settings_dir()
         dlg = ChannelSettingsDialog(self, settings_dir=settings_dir)
         dlg.exec()
 
