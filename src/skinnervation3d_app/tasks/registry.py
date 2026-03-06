@@ -2,7 +2,7 @@ from typing import Any, Callable, List
 from mesospim_fractal_tasks.tasks import (crop_regions_of_interest_dask,
                                           correct_flatfield_dask,
                                           correct_illumination_dask,
-                                          stitch_with_multiview_stitcher, 
+                                          stitch_with_multiview_stitcher,
                                           mesospim_to_omezarr,
                                           modify_omezarr_structure,
                                           prepare_mesospim_omezarr)
