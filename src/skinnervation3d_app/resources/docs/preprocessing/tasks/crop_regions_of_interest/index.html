@@ -16,7 +16,7 @@
         <link rel="prev" href="../stitch_with_multiview_stitcher/">
       
       
-        <link rel="next" href="../../api/">
+        <link rel="next" href="../modify_omezarr_structure/">
       
       
         
@@ -545,6 +545,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../prepare_mesospim_omezarr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prepare mesoSPIM OME-Zarr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../correct_flatfield/" class="md-nav__link">
         
   
@@ -722,6 +750,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#chunksize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunksize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#num-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Num Levels
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -742,6 +792,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modify_omezarr_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify OME-Zarr Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -806,7 +884,7 @@
 directory and uses it to crop the image. To obtain the table, refer to the plugin <a href="https://github.com/girochat/napari-crop-tool/tree/main">napari-crop-tool</a>.</p>
 <p>There can be two different types of region of interest:</p>
 <ol>
-<li>ROI: The regions of interest are a sample of a given image intended for downstream analysis.</li>
+<li>ROI: The regions of interest are a sample of a given image intended for downstream analysis that contains structure(s) of interest (gland, muscle, DEJ...).</li>
 <li>Crop: The region of interest here is simply a smaller version of the full image to remove empty space and reduce the size of the OME-Zarr.</li>
 </ol>
 <hr />
@@ -815,8 +893,21 @@ directory and uses it to crop the image. To obtain the table, refer to the plugi
 <h3 id="crop-or-roi">Crop or ROI<a class="headerlink" href="#crop-or-roi" title="Permanent link">&para;</a></h3>
 <p>The task can produce a crop of the full resolution image to remove empty space for example. With this parameter, you can specify whether the coordinates correspond to a crop or to one more ROIs. This matters mainly for file naming and task overhead.</p>
 <h3 id="roi-table-name">ROI Table Name<a class="headerlink" href="#roi-table-name" title="Permanent link">&para;</a></h3>
-<p>The task will look for a ROI coordinates table at the same location of the image that one wants to crop (e.g. if ROIs are taken from <code>raw_image_illum_corr</code>, the table should be in <code>raw_image_illum_corr</code>). By default it will look for a table named <code>roi_coords.csv</code>. If the name is different you can specify it with this parameter. 
-When using the Napari plugin <strong>Crop Tool</strong> to crop the ROIs, it saves the output coordinates by default using the name <code>roi_coords.csv</code> in the image folder currently opened in Napari.</p>
+<p>The task will look for a ROI coordinates table in the OME-Zarr folder of the image that one wants to crop (e.g. if ROIs are taken from <code>sample.zarr/raw_image_illum_corr</code>, the table should be in <code>sample.zarr</code>). By default it will look for a table named <code>roi_coords.csv</code>. If the name of the table is different you can specify it with this parameter.  </p>
+<p>When using the Napari plugin <strong>Crop Tool</strong> to crop the ROIs, it saves the output coordinates by default using the name <code>roi_coords.csv</code> in the OME-Zarr folder currently opened in Napari.  </p>
+<p>Each ROI that was drawn using the plugin will be attributed the name <code>&lt;tag&gt;_roi_&lt;index&gt;</code> where <code>&lt;tag&gt;</code> is a custom tag to help identify the type of ROI that was created (e.g. <code>muscle_roi_1</code>). The tag can be set in the plugin. The index of the ROI is automatically incremented for each ROI drawn.</p>
+<h3 id="chunksize">Chunksize<a class="headerlink" href="#chunksize" title="Permanent link">&para;</a></h3>
+<p>The OME-Zarr stores image data in chunks and at several resolution levels in a so-called pyramid of multi-resolution. The chunksize parameter allows you to set the size of the chunks in pixels. It is recommended to keep the size of the chunks small to avoid memory issues, but not too small to reduce the overhead of storing the data in OME-Zarr. The size should be around 100Mb-1Gb, see <a href="https://blog.dask.org/2021/11/02/choosing-dask-chunk-sizes">this article</a> for more infos.<br />
+You can compute the size of the chunksize by multiplying their values and by the byte size (for mesoSPIM image data it is typically 2, but prefer 4 to comply with analysis tasks).  Furthermore, the chunksize should be set to a value that is a power of 2, e.g. 64, 128, 512... The chunksize impacts how fast the OME-Zarr can be viewed but also the memory requirements to process it. There are three required numbers to provide, one for each axis in the order <code>Z</code>, <code>Y</code>, and <code>X</code>. The <code>Z</code> axis is often smaller than the other two, so it is recommended to provide a smaller chunksize for it. </p>
+<p>Here is a video with a good visual explanation about the OME-Zarr structure such as the pyramid of resolution and the chunks (first 15min): <a href="https://www.youtube.com/watch?v=RlvJXqKjmek">Handling huge imaging data with OME-Zarr</a></p>
+<p>Typical values examples:
+- 128x512x512 (~136Mb)
+- 32x1024x1024 (~136Mb)
+- 64x1024x1024 (~268Mb)</p>
+<h3 id="num-levels">Num Levels<a class="headerlink" href="#num-levels" title="Permanent link">&para;</a></h3>
+<p>The core idea of the OME-Zarr file format is to store the image data in a pyramid of multi-resolution. This allows to view large images without loading the entire dataset in memory. The pyramid is built progressively, starting from the highest resolution (raw data) and decreasing the resolution by a factor of two or more at each level. Often when viewing the full size image (raw data), we do not need a high level of details for the full image at once (the display cannot even handle so many pixels). Therefore, the pyramid allows us to display the image at different levels of detail, each one corresponding to a different resolution, depending on the zoom into the image. It is similar to the google maps experience.</p>
+<p>This parameter allows you to specify explicitly how many pyramid levels to build. By default, the task will try to estimate the optimal number of levels based on the size of the image so that it can be viewed in 3D on a normal computer. If you have a more performant computer, you can decrease the number of levels to have a better 3D experience.</p>
+<p>Here is a video with a good visual explanation about the OME-Zarr structure such as the pyramid of resolution and the chunks (first 15min): <a href="https://www.youtube.com/watch?v=RlvJXqKjmek">Handling huge imaging data with OME-Zarr</a></p>
 <hr />
 <h2 id="local-run-command">Local Run Command<a class="headerlink" href="#local-run-command" title="Permanent link">&para;</a></h2>
 <div class="codehilite"><pre><span></span><code>python<span class="w"> </span>run_crop_rois.py<span class="w"> </span>

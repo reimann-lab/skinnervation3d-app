@@ -545,6 +545,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../prepare_mesospim_omezarr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prepare mesoSPIM OME-Zarr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../correct_flatfield/" class="md-nav__link">
         
   
@@ -769,6 +797,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modify_omezarr_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify OME-Zarr Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -833,7 +889,7 @@
 <h3 id="registration-resolution-level">Registration Resolution Level<a class="headerlink" href="#registration-resolution-level" title="Permanent link">&para;</a></h3>
 <p>The OME-Zarr image is typically stored with a pyramid of resolution levels. The highest resolution level is 0, the lowest resolution level is the number of levels minus 1. By default, the task will use the lowest resolution level for registration. You can use this parameter to set a different resolution level.</p>
 <h3 id="max-workers">Max Workers<a class="headerlink" href="#max-workers" title="Permanent link">&para;</a></h3>
-<p>The task can be run in parallel over all the chunks of the image. This parameter allows you to set the maximum number of workers to use for the registration. It cannot be higher than the number of CPUs of your machine. Increasing this number can also lead to memory overflow. There is a trade-off between the number of workers and the memory usage.</p>
+<p>The task can be run in parallel over all the chunks of the image. This parameter allows you to set the maximum number of workers to use for the registration. It cannot be higher than the number of cores of your machine. Increasing this number can also lead to memory overflow. There is a trade-off between the number of workers and the memory usage.</p>
 <h3 id="fusion-chunksize">Fusion Chunksize<a class="headerlink" href="#fusion-chunksize" title="Permanent link">&para;</a></h3>
 <p>The task fuses the tiles into a single image and do so per chunk. By default, it takes the chunksize of the original image. If this is too large, it can lead to memory overflow. You can set a smaller chunksize to reduce memory usage. However, this increases the time to fuse the tiles.</p>
 <hr />
