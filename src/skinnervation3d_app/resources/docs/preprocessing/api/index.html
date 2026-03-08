@@ -13,7 +13,7 @@
       
       
       
-        <link rel="prev" href="../tasks/crop_regions_of_interest/">
+        <link rel="prev" href="../tasks/modify_omezarr_structure/">
       
       
       
@@ -543,6 +543,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../tasks/prepare_mesospim_omezarr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prepare mesoSPIM OME-Zarr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../tasks/correct_flatfield/" class="md-nav__link">
         
   
@@ -635,6 +663,34 @@
     
   
     ROI Cropping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/modify_omezarr_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify OME-Zarr Structure
   
 
     
@@ -844,7 +900,7 @@
 
 
 <h3 id="mesospim_fractal_tasks.tasks.mesospim_to_omezarr.mesospim_to_omezarr" class="doc doc-heading">
-            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">mesospim_to_omezarr</span><span class="o">.</span><span class="n">mesospim_to_omezarr</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="s1">&#39;h5&#39;</span><span class="p">,</span> <span class="n">zarr_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">metadata_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">channel_color_file</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="n">exclusion_list</span><span class="o">=</span><span class="p">[],</span> <span class="n">num_levels</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">coarsening_factor</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">mesospim_to_omezarr</span><span class="o">.</span><span class="n">mesospim_to_omezarr</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="s1">&#39;h5&#39;</span><span class="p">,</span> <span class="n">zarr_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">image_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">metadata_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">channel_color_settings</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="n">num_levels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="n">DimTuple</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mi">1024</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#mesospim_fractal_tasks.tasks.mesospim_to_omezarr.mesospim_to_omezarr" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -973,37 +1029,19 @@ a _meta.txt will be searched using the provided pattern. Default: None.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>channel_color_file</code>
+                <code>channel_color_settings</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Path to a JSON file or keyword identifying the JSON 
-file among provided defaults containing the channel colors information. 
-Default: "default".</p>
+                <p>Keyword identifying the channel color settings
+among all saved settings. Default: "default".</p>
               </div>
             </td>
             <td>
                   <code>&#39;default&#39;</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>exclusion_list</code>
-            </td>
-            <td>
-                  <code><span title="list">list</span>[<span title="int">int</span>]</code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>List of tiles to exclude from being converted, e.g.
-empty signal tiles. Default: [].</p>
-              </div>
-            </td>
-            <td>
-                  <code>[]</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1016,12 +1054,13 @@ empty signal tiles. Default: [].</p>
             <td>
               <div class="doc-md-description">
                 <p>Number of pyramid levels (including the full resolution level, 
-so if you want no pyramid, then num_levels=1). For a 1Tb dataset, it is 
-recommended to have at least num_levels=6. Default: 6.</p>
+so with no extra pyramid, the number of levels is 1). For a 1Tb dataset, it is 
+recommended to have at least 6 levels. If not provided, the code will estimate
+the optimal pyramid depth based on the size of the image. Default: None.</p>
               </div>
             </td>
             <td>
-                  <code>6</code>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1029,34 +1068,17 @@ recommended to have at least num_levels=6. Default: 6.</p>
                 <code>chunksize</code>
             </td>
             <td>
-                  <code><span title="tuple">tuple</span>[<span title="int">int</span>, <span title="int">int</span>, <span title="int">int</span>]</code>
+                  <code><span title="mesospim_fractal_tasks.utils.models.DimTuple">DimTuple</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Chunk size to use for the OME-Zarr image.
-Default: (16, 256, 256).</p>
+                <p>Chunk size to use for the OME-Zarr image. Smaller chunksizes improve
+visualisation smoothness but impairs processing efficiency.
+Default: (64, 1024, 1024).</p>
               </div>
             </td>
             <td>
-                  <code>(16, 256, 256)</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>coarsening_factor</code>
-            </td>
-            <td>
-                  <code><span title="int">int</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Coarsening factor to apply to the pyramid. New pyramid
-resolution level will have an image with X/Y axis size divided by this factor. 
-Default: 2.</p>
-              </div>
-            </td>
-            <td>
-                  <code>2</code>
+                  <code><span title="mesospim_fractal_tasks.utils.models.DimTuple">DimTuple</span>(z=64, y=1024, x=1024)</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1089,7 +1111,7 @@ not overwrite the OME-Zarr folder if it already exists. Default: False.</p>
 
 
 <h3 id="mesospim_fractal_tasks.tasks.init_correct_flatfield.init_correct_flatfield" class="doc doc-heading">
-            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">init_correct_flatfield</span><span class="o">.</span><span class="n">init_correct_flatfield</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_urls</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">FOV_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z_levels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save_models</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">init_correct_flatfield</span><span class="o">.</span><span class="n">init_correct_flatfield</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_urls</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">FOV_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z_levels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">save_models</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#mesospim_fractal_tasks.tasks.init_correct_flatfield.init_correct_flatfield" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -1190,6 +1212,24 @@ in FOV_list, otherwise from the four tiles at the corners. Default: None.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>resolution_level</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Resolution level at which to calculate the illumination
+correction profiles. If None, the lowest resolution level will be used for BaSiCPy
+and highest resolution level for empty FOVs. Default: None.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>save_models</code>
             </td>
             <td>
@@ -1217,7 +1257,7 @@ of the currently processed OME-Zarr. Default: False.</p>
 
 
 <h3 id="mesospim_fractal_tasks.tasks.correct_flatfield.correct_flatfield" class="doc doc-heading">
-            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">correct_flatfield</span><span class="o">.</span><span class="n">correct_flatfield</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_url</span><span class="p">,</span> <span class="n">init_args</span><span class="p">,</span> <span class="n">models_folder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resolution_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_zplanes</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">basicpy_model_params</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">correct_flatfield</span><span class="o">.</span><span class="n">correct_flatfield</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_url</span><span class="p">,</span> <span class="n">init_args</span><span class="p">,</span> <span class="n">models_folder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_zplanes</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">basicpy_model_params</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#mesospim_fractal_tasks.tasks.correct_flatfield.correct_flatfield" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -1258,6 +1298,23 @@ for each channel label or wavelength.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>init_args</code>
+            </td>
+            <td>
+                  <code><span title="typing.Dict">Dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Intialization arguments provided by
+<code>init_correct_flatfield</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>models_folder</code>
             </td>
             <td>
@@ -1269,24 +1326,6 @@ for each channel label or wavelength.</p>
 profiles are stored and can be used to perform flatfield correction. 
 If provided, fitting models is skipped and only the correction step is
 performed. Default: None.</p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>resolution_level</code>
-            </td>
-            <td>
-                  <code><span title="typing.Optional">Optional</span>[<span title="int">int</span>]</code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Resolution level at which to calculate the illumination
-correction profiles. If None, the lowest resolution level will be used for BaSiCPy
-and highest resolution level for empty FOVs. Default: None.</p>
               </div>
             </td>
             <td>
@@ -1498,7 +1537,7 @@ Z band artifacts.</p>
 
 
 <h3 id="mesospim_fractal_tasks.tasks.init_crop_regions_of_interest.init_crop_regions_of_interest" class="doc doc-heading">
-            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">init_crop_regions_of_interest</span><span class="o">.</span><span class="n">init_crop_regions_of_interest</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_urls</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">crop_or_roi</span><span class="o">=</span><span class="s1">&#39;roi&#39;</span><span class="p">,</span> <span class="n">roi_table_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_levels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coarsening_xy</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></code>
+            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">init_crop_regions_of_interest</span><span class="o">.</span><span class="n">init_crop_regions_of_interest</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_urls</span><span class="p">,</span> <span class="n">zarr_dir</span><span class="p">,</span> <span class="n">crop_or_roi</span><span class="o">=</span><span class="s1">&#39;roi&#39;</span><span class="p">,</span> <span class="n">roi_table_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_levels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">erase_source_image</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#mesospim_fractal_tasks.tasks.init_crop_regions_of_interest.init_crop_regions_of_interest" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -1617,19 +1656,53 @@ pyramid size as the original image will be used. Default: None.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>coarsening_xy</code>
+                <code>chunksize</code>
             </td>
             <td>
-                  <code><span title="int">int</span></code>
+                  <code><span title="typing.Optional">Optional</span>[<span title="mesospim_fractal_tasks.utils.models.DimTuple">DimTuple</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Coarsening factor in XY for the ROI image. Optional, if different
-from the coarsening factor used for the full resolution image. Default: 2.</p>
+                <p>Chunk size to use for the new ROI image(s). If None, the chunksize
+of the original image will be used. Default: None.</p>
               </div>
             </td>
             <td>
-                  <code>2</code>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>overwrite</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to overwrite existing ROI images if they already exist 
+in the OME-Zarr folder. Default: False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>erase_source_image</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, the source image will be erased after cropping.
+It only works if <code>crop_or_roi</code> is set to <code>crop</code>. Default: False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
       </tbody>
@@ -1713,7 +1786,7 @@ resolution image, crops the ROI, and saves it in the same well.</p>
 
 
 <h3 id="mesospim_fractal_tasks.tasks.stitch_with_multiview_stitcher.stitch_with_multiview_stitcher" class="doc doc-heading">
-            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">stitch_with_multiview_stitcher</span><span class="o">.</span><span class="n">stitch_with_multiview_stitcher</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_url</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">registration_resolution_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">registration_on_z_proj</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">registration_function</span><span class="o">=</span><span class="s1">&#39;phase_correlation&#39;</span><span class="p">,</span> <span class="n">overlap_tolerance</span><span class="o">=</span><span class="n">DimTuple</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">transform_type</span><span class="o">=</span><span class="s1">&#39;translation&#39;</span><span class="p">,</span> <span class="n">pre_registration_pruning_method</span><span class="o">=</span><span class="s1">&#39;keep_axis_aligned&#39;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">fusion_chunksize</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class=" language-python"><span class="n">mesospim_fractal_tasks</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">stitch_with_multiview_stitcher</span><span class="o">.</span><span class="n">stitch_with_multiview_stitcher</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">zarr_url</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">registration_resolution_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">registration_on_z_proj</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">registration_function</span><span class="o">=</span><span class="s1">&#39;phase_correlation&#39;</span><span class="p">,</span> <span class="n">overlap_tolerance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">transform_type</span><span class="o">=</span><span class="s1">&#39;translation&#39;</span><span class="p">,</span> <span class="n">pre_registration_pruning_method</span><span class="o">=</span><span class="s1">&#39;keep_axis_aligned&#39;</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">fusion_chunksize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">erase_source_image</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 <a href="#mesospim_fractal_tasks.tasks.stitch_with_multiview_stitcher.stitch_with_multiview_stitcher" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -1833,7 +1906,7 @@ Default: 'phase_correlation'.</p>
                 <code>overlap_tolerance</code>
             </td>
             <td>
-                  <code><span title="mesospim_fractal_tasks.utils.models.DimTuple">DimTuple</span></code>
+                  <code><span title="typing.Optional">Optional</span>[<span title="mesospim_fractal_tasks.utils.models.DimTuple">DimTuple</span>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1847,7 +1920,7 @@ Default: 0 for all dimensions.</p>
               </div>
             </td>
             <td>
-                  <code><span title="mesospim_fractal_tasks.utils.models.DimTuple">DimTuple</span>(z=0, y=0, x=0)</code>
+                  <code>None</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1941,6 +2014,23 @@ If None, the chunksize of the raw image is used. Default: None.</p>
             </td>
             <td>
                   <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>erase_source_image</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>True</code>, the source image will be erased after stitching.
+Default: False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
             </td>
           </tr>
       </tbody>
