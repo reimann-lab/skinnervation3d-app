@@ -13,10 +13,10 @@
       
       
       
-        <link rel="prev" href="../correct_flatfield/">
+        <link rel="prev" href="../mesospim_to_omezarr/">
       
       
-        <link rel="next" href="../stitch_with_multiview_stitcher/">
+        <link rel="next" href="../correct_flatfield/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Illumination Correction - MesoSPIM Fractal Tasks</title>
+        <title>Prepare mesoSPIM OME-Zarr - MesoSPIM Fractal Tasks</title>
       
     
     
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#illumination-correction" class="md-skip">
+        <a href="#prepare-mesospim-ome-zarr" class="md-skip">
           Skip to content
         </a>
       
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Illumination Correction
+              Prepare mesoSPIM OME-Zarr
             
           </span>
         </div>
@@ -542,10 +542,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../prepare_mesospim_omezarr/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prepare mesoSPIM OME-Zarr
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -561,6 +588,142 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zarr-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Zarr Name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#channel-color-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Channel Color Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chunksize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunksize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#num-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Num Levels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#channel-color-and-naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Channel Color and Naming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-run-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Run Command
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -598,37 +761,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Illumination Correction
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../correct_illumination/" class="md-nav__link">
         
   
   
@@ -644,65 +780,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parameters
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Parameters">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#z-correction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Z Correction
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#local-run-command" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Local Run Command
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -846,18 +923,130 @@
   
 
 
-<h1 id="illumination-correction">Illumination Correction<a class="headerlink" href="#illumination-correction" title="Permanent link">&para;</a></h1>
-<p>This task performs a global illumination normalization across all tiles of a multitile dataset. It ensures that tile intensities match consistently in overlapping regions, reducing brightness differences that arise from acquisition variability.</p>
-<p>The correction operates by analyzing all tile–tile overlaps, estimating multiplicative coefficients that bring tiles to a common illumination level, and applying these coefficients to the entire dataset. </p>
-<p>An optional Z-axis correction is available to compensate for Z band artifacts.</p>
+<h1 id="prepare-mesospim-ome-zarr">Prepare mesoSPIM OME-Zarr<a class="headerlink" href="#prepare-mesospim-ome-zarr" title="Permanent link">&para;</a></h1>
+<p>This task prepares a new OME-Zarr that will be used for the downstream analysis. To insure compatibility with the analysis pipeline and the OME-Zarrs output by mesoSPIM, it will create a tiny proxy raw image in this new OME-Zarr. This raw image is a fake OME-Zarr image that contains the same metadata as the original OME-Zarr and additional information to enable the analysis pipeline to find and correctly assemble the separate tiles output by the mesoSPIM. Once this task is completed, the analysis pipeline can be run on the proxy raw image normally.<br />
+The task can be used in two ways:</p>
+<ol>
+<li><strong>On the Fractal platform</strong> – as part of a workflow.</li>
+<li><strong>Locally</strong> – by running the task directly as a Python function or CLI command.</li>
+</ol>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The task performs the following steps:</p>
+<ul>
+<li>Detects the main mesoSPIM OME-Zarr in <code>zarr_dir</code> matching <code>pattern</code> that contains all the OME-Zarr tiles of the multitile acquisition.</li>
+<li>Loads mesoSPIM metadata</li>
+<li>Assembles channels and tiles</li>
+<li>Writes a tiny proxy fake raw image OME-Zarr mirroring the separate tiles as one unique image.</li>
+<li>Assigns channel names and colors based on user-defined JSON file</li>
+</ul>
 <hr />
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
-<h3 id="z-correction">Z Correction<a class="headerlink" href="#z-correction" title="Permanent link">&para;</a></h3>
-<p>By setting this parameter to <code>True</code>, the task will perform a z-correction to compensate for Z band artifacts.</p>
-<hr />
-<h2 id="local-run-command">Local Run Command<a class="headerlink" href="#local-run-command" title="Permanent link">&para;</a></h2>
-<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>run_illumination_correction.py<span class="w"> </span>
+<p>Below is a detailed explanation of important parameters.</p>
+<h3 id="pattern">Pattern<a class="headerlink" href="#pattern" title="Permanent link">&para;</a></h3>
+<p>In case there are several OME-Zarrs in the same analysis directory, you can specify a pattern to select the specific OME-Zarr you want to prepare. This pattern needs to be uniquely present in the OME-Zarr name and its metadata files.</p>
+<p>For example:</p>
+<div class="codehilite"><pre><span></span><code><span class="w">    </span><span class="n">Analysis</span><span class="w"> </span><span class="k">Directory</span><span class="o">=</span><span class="w"> </span><span class="n n-Quoted">`C:/path_to_directory/IENFD25-X-X`</span>
+
+<span class="w">    </span><span class="n">Files</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="n">suffix</span><span class="o">:</span><span class="w"> </span><span class="n n-Quoted">`IENFD25-X-X.ome.zarr`</span><span class="p">,</span><span class="w"> </span><span class="n n-Quoted">`IENFD25-X-X_restained.ome.zarr`</span><span class="p">,</span><span class="w"> </span><span class="n n-Quoted">`IENFD25-X-X_lectin.ome.zarr`</span>
+
+<span class="w">    </span><span class="n">Pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n n-Quoted">`restained`</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">you</span><span class="w"> </span><span class="n">want</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="k">convert</span><span class="w"> </span><span class="k">only</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n n-Quoted">`IENFD25-X-X_restained.ome.zarr`</span><span class="w"> </span><span class="k">file</span><span class="p">.</span>
 </code></pre></div>
+
+<h3 id="zarr-name">Zarr Name<a class="headerlink" href="#zarr-name" title="Permanent link">&para;</a></h3>
+<p>It is recommended to set a name for the new OME-Zarr that will be created. This name will be used as the root of the new Zarr hierarchy. If nothing is provided, the task will use the name of the analysis directory.</p>
+<p>For example if nothing is provided:</p>
+<div class="codehilite"><pre><span></span><code>    Analysis Directory= <span class="sb">`C:/path_to_directory/IENFD25-X-X`</span>
+
+    Zarr Name = <span class="sb">`IENFD25-X-X.zarr`</span>
+</code></pre></div>
+
+<h3 id="channel-color-settings">Channel Color Settings<a class="headerlink" href="#channel-color-settings" title="Permanent link">&para;</a></h3>
+<p>There are default channel color settings saved in the package directory to define the color and naming of each channel based on the laser wavelength during acquisition. If you want to modify the available defaults and save your own channel color settings, you can provide a JSON file with the channel color definitions. The procedure is detailed <a href="#channel-color-and-naming">HERE</a>. You can select one of the default settings by providing its key in the parameters. You can also directly provide the path to compatible JSON file with your specific channel color definitions using this parameter.</p>
+<p>For example:</p>
+<div class="codehilite"><pre><span></span><code><span class="w">    </span><span class="k">Channel</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="k">File</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n n-Quoted">`default`</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="n n-Quoted">`v0`</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="p">...</span>
+
+<span class="w">    </span><span class="k">Channel</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="k">File</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n n-Quoted">`path_to/my_custom_channels.json`</span>
+</code></pre></div>
+
+<h3 id="chunksize">Chunksize<a class="headerlink" href="#chunksize" title="Permanent link">&para;</a></h3>
+<p>The OME-Zarr stores image data in chunks and at several resolution levels in a so-called pyramid of multi-resolution. The chunksize parameter allows you to set the size of the chunks in pixels. It is recommended to keep the size of the chunks small to avoid memory issues, but not too small to reduce the overhead of storing the data in OME-Zarr. The size should be around 100Mb-1Gb, see <a href="https://blog.dask.org/2021/11/02/choosing-dask-chunk-sizes">this article</a> for more infos.<br />
+You can compute the size of the chunksize by multiplying their values and by the byte size (for mesoSPIM image data it is typically 2, but prefer 4 to comply with analysis tasks).  Furthermore, the chunksize should be set to a value that is a power of 2, e.g. 64, 128, 512... The chunksize impacts how fast the OME-Zarr can be viewed but also the memory requirements to process it. There are three required numbers to provide, one for each axis in the order <code>Z</code>, <code>Y</code>, and <code>X</code>. The <code>Z</code> axis is often smaller than the other two, so it is recommended to provide a smaller chunksize for it. </p>
+<p>Here is a video with a good visual explanation about the OME-Zarr structure such as the pyramid of resolution and the chunks (first 15min): <a href="https://www.youtube.com/watch?v=RlvJXqKjmek">Handling huge imaging data with OME-Zarr</a></p>
+<p>Typical values examples:
+- 128x512x512 (~136Mb)
+- 32x1024x1024 (~136Mb)
+- 64x1024x1024 (~268Mb)</p>
+<h3 id="num-levels">Num Levels<a class="headerlink" href="#num-levels" title="Permanent link">&para;</a></h3>
+<p>The core idea of the OME-Zarr file format is to store the image data in a pyramid of multi-resolution. This allows to view large images without loading the entire dataset in memory. The pyramid is built progressively, starting from the highest resolution (raw data) and decreasing the resolution by a factor of two or more at each level. Often when viewing the full size image (raw data), we do not need a high level of details for the full image at once (the display cannot even handle so many pixels). Therefore, the pyramid allows us to display the image at different levels of detail, each one corresponding to a different resolution, depending on the zoom into the image. It is similar to the google maps experience.</p>
+<p>This parameter allows you to specify explicitly how many pyramid levels to build. By default, the task will try to estimate the optimal number of levels based on the size of the image so that it can be viewed in 3D on a normal computer. If you have a more performant computer, you can decrease the number of levels to have a better 3D experience.</p>
+<p>Here is a video with a good visual explanation about the OME-Zarr structure such as the pyramid of resolution and the chunks (first 15min): <a href="https://www.youtube.com/watch?v=RlvJXqKjmek">Handling huge imaging data with OME-Zarr</a></p>
+<hr />
+<h2 id="channel-color-and-naming">Channel Color and Naming<a class="headerlink" href="#channel-color-and-naming" title="Permanent link">&para;</a></h2>
+<p>The task will assign channel names and colors based on a JSON file. There is a default template that is provided to set
+custom channel settings. </p>
+<p>Here is the procedure to view the current available default settings:</p>
+<ol>
+<li>
+<p>View the available channel settings</p>
+<p>In a shell, in the package directory, run:</p>
+<div class="codehilite"><pre><span></span><code>get-channel-keys
+</code></pre></div>
+
+<p>This will print the available channel keys, e.g. the identifiers for the channel color settings.</p>
+</li>
+<li>
+<p>View a given channel setting</p>
+<p>In a shell, in the package directory, run:</p>
+<div class="codehilite"><pre><span></span><code>get-channel-setting &lt;key&gt;
+</code></pre></div>
+
+<p>This will print the channel settings for the given channel key.</p>
+</li>
+</ol>
+<p>Here is the procedure to get the template and register your own settings as default in case of
+recurring use.</p>
+<ol>
+<li>
+<p>Obtain the channel settings template  </p>
+<p>In a shell, in the package directory, run:  </p>
+<div class="codehilite"><pre><span></span><code>copy-channel-template
+</code></pre></div>
+
+<p>This command copies the JSON template <code>channel_setting_template.json</code> into the package directory.</p>
+</li>
+<li>
+<p>Edit the template  </p>
+<p>Open the copied file and modify it to describe your actual imaging channels.
+It is important to keep the elements and structure of the JSON file intact.<br />
+You can provide the path to this file to the task in the parameters to use these channel settings. In case of
+recurring use, you can register the settings as default in the package settings directory (see below).</p>
+</li>
+<li>
+<p>Register the channel settings (Optional)</p>
+<p>To make your JSON file available to the conversion task as the default setting, run:  </p>
+<div class="codehilite"><pre><span></span><code>set-channel-setting my_custom_channels.json
+</code></pre></div>
+
+<p>or accessible with a specific name:  </p>
+<div class="codehilite"><pre><span></span><code>set-channel-setting my_custom_channels.json --setting-name myspecificname
+</code></pre></div>
+
+<p>This will validate the JSON structure and store the file internally in the package settings directory. You can now
+access it using the key "default" or the name you provided.</p>
+</li>
+</ol>
+<h2 id="local-run-command">Local Run Command<a class="headerlink" href="#local-run-command" title="Permanent link">&para;</a></h2>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>run_prepare_omezarr.py<span class="w"> </span>
+</code></pre></div>
+
+<hr />
+<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The task currently supports mesoSPIM H5/TIFF/RAW formats.</li>
+<li>Multiscale levels follow OME-NGFF conventions.</li>
+</ul>
+<hr />
 
 
 

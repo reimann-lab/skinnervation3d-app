@@ -16,7 +16,7 @@
         <link rel="prev" href="../../usage/local_run/">
       
       
-        <link rel="next" href="../correct_flatfield/">
+        <link rel="next" href="../prepare_mesospim_omezarr/">
       
       
         
@@ -644,21 +644,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#channel-color-file" class="md-nav__link">
+  <a href="#channel-color-settings" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Channel Color File
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#exclusion-list" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Exclusion List
+        Channel Color Settings
       
     </span>
   </a>
@@ -670,6 +659,17 @@
     <span class="md-ellipsis">
       
         Chunksize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#num-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Num Levels
       
     </span>
   </a>
@@ -718,6 +718,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prepare_mesospim_omezarr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prepare mesoSPIM OME-Zarr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -822,6 +850,34 @@
     
   
     ROI Cropping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modify_omezarr_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modify OME-Zarr Structure
   
 
     
@@ -952,7 +1008,7 @@ It supports mesoSPIM <code>.h5</code>, <code>.tiff</code>, and <code>.raw</code>
     Expected Metadata File = <span class="sb">`C:/path_to_directory/IENFD25-X-X/IENFD25-X-X.h5_meta.txt`</span>
 </code></pre></div>
 
-<h3 id="channel-color-file">Channel Color File<a class="headerlink" href="#channel-color-file" title="Permanent link">&para;</a></h3>
+<h3 id="channel-color-settings">Channel Color Settings<a class="headerlink" href="#channel-color-settings" title="Permanent link">&para;</a></h3>
 <p>There are default channel color settings saved in the package directory to define the color and naming of each channel based on the laser wavelength during acquisition. If you want to modify the available defaults and save your own channel color settings, you can provide a JSON file with the channel color definitions. The procedure is detailed <a href="#channel-color-and-naming">HERE</a>. You can select one of the default settings by providing its key in the parameters. You can also directly provide the path to compatible JSON file with your specific channel color definitions using this parameter.</p>
 <p>For example:</p>
 <div class="codehilite"><pre><span></span><code><span class="w">    </span><span class="k">Channel</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="k">File</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n n-Quoted">`default`</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="n n-Quoted">`v0`</span><span class="w"> </span><span class="k">or</span><span class="w"> </span><span class="p">...</span>
@@ -960,30 +1016,18 @@ It supports mesoSPIM <code>.h5</code>, <code>.tiff</code>, and <code>.raw</code>
 <span class="w">    </span><span class="k">Channel</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="k">File</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n n-Quoted">`path_to/my_custom_channels.json`</span>
 </code></pre></div>
 
-<h3 id="exclusion-list">Exclusion List<a class="headerlink" href="#exclusion-list" title="Permanent link">&para;</a></h3>
-<p>This parameter allows you to exclude specific set of tiles from being converted to OME-Zarr. In case you have a multitile setup (e.g. h5 file) and a full
-row and/or column of tiles are empty, you can provide a list of tile indices to exclude from the conversion. This reduces the size of the OME-Zarr and speeds up the conversion. </p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Typically, the mesoSPIM multitile output file has a tile ordering that follows an inverted <code>N</code> shape, e.g. the first tile is the top left tile, the second tile is the one below it, and so on. Once it reaches the bottom of the column, the next tile starts at the top of the next column, from left to right:</p>
-<div class="codehilite"><pre><span></span><code>tile 00 - tile 03 - tile 06
-   |         |         |
-tile 01 - tile 04 - tile 07
-   |         |         |
-tile 02 - tile 05 - tile 08
-</code></pre></div>
-
-</div>
-<div class="admonition important">
-<p class="admonition-title">Important</p>
-<p>The tile numbering starts at 0!</p>
-</div>
 <h3 id="chunksize">Chunksize<a class="headerlink" href="#chunksize" title="Permanent link">&para;</a></h3>
-<p>The OME-Zarr stores image data in chunks and at several resolution levels in a so-called pyramid of multi-resolution. The chunksize parameter allows you to set the size of the chunks in pixels. It is recommended to keep the size of the chunks small to avoid memory issues, but not too small to reduce the overhead of storing the data in OME-Zarr. The size should be around 100Mb-1Gb, see <a href="https://blog.dask.org/2021/11/02/choosing-dask-chunk-sizes">this article</a> for more infos. You can compute the size of the chunksize by multiplying their values and by the byte size (for mesoSPIM image data it is typically 2, but prefer 4 to comply with analysis tasks). Furthermore, the chunksize should be set to a value that is a power of 2, e.g. 64, 128, 512... The chunksize impacts how fast the OME-Zarr can be viewed but also the memory requirements to process it. There are three required numbers to provide, one for each axis in the order <code>Z</code>, <code>Y</code>, and <code>X</code>. The <code>Z</code> axis is often smaller than the other two, so it is recommended to provide a smaller chunksize for it. </p>
+<p>The OME-Zarr stores image data in chunks and at several resolution levels in a so-called pyramid of multi-resolution. The chunksize parameter allows you to set the size of the chunks in pixels. It is recommended to keep the size of the chunks small to avoid memory issues, but not too small to reduce the overhead of storing the data in OME-Zarr. The size should be around 100Mb-1Gb, see <a href="https://blog.dask.org/2021/11/02/choosing-dask-chunk-sizes">this article</a> for more infos.<br />
+You can compute the size of the chunksize by multiplying their values and by the byte size (for mesoSPIM image data it is typically 2, but prefer 4 to comply with analysis tasks).  Furthermore, the chunksize should be set to a value that is a power of 2, e.g. 64, 128, 512... The chunksize impacts how fast the OME-Zarr can be viewed but also the memory requirements to process it. There are three required numbers to provide, one for each axis in the order <code>Z</code>, <code>Y</code>, and <code>X</code>. The <code>Z</code> axis is often smaller than the other two, so it is recommended to provide a smaller chunksize for it. </p>
+<p>Here is a video with a good visual explanation about the OME-Zarr structure such as the pyramid of resolution and the chunks (first 15min): <a href="https://www.youtube.com/watch?v=RlvJXqKjmek">Handling huge imaging data with OME-Zarr</a></p>
 <p>Typical values examples:
 - 128x512x512 (~136Mb)
 - 32x1024x1024 (~136Mb)
 - 64x1024x1024 (~268Mb)</p>
+<h3 id="num-levels">Num Levels<a class="headerlink" href="#num-levels" title="Permanent link">&para;</a></h3>
+<p>The core idea of the OME-Zarr file format is to store the image data in a pyramid of multi-resolution. This allows to view large images without loading the entire dataset in memory. The pyramid is built progressively, starting from the highest resolution (raw data) and decreasing the resolution by a factor of two or more at each level. Often when viewing the full size image (raw data), we do not need a high level of details for the full image at once (the display cannot even handle so many pixels). Therefore, the pyramid allows us to display the image at different levels of detail, each one corresponding to a different resolution, depending on the zoom into the image. It is similar to the google maps experience.</p>
+<p>This parameter allows you to specify explicitly how many pyramid levels to build. By default, the task will try to estimate the optimal number of levels based on the size of the image so that it can be viewed in 3D on a normal computer. If you have a more performant computer, you can decrease the number of levels to have a better 3D experience.</p>
+<p>Here is a video with a good visual explanation about the OME-Zarr structure such as the pyramid of resolution and the chunks (first 15min): <a href="https://www.youtube.com/watch?v=RlvJXqKjmek">Handling huge imaging data with OME-Zarr</a></p>
 <hr />
 <h2 id="channel-color-and-naming">Channel Color and Naming<a class="headerlink" href="#channel-color-and-naming" title="Permanent link">&para;</a></h2>
 <p>The task will assign channel names and colors based on a JSON file. There is a default template that is provided to set
