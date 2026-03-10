@@ -16,7 +16,7 @@
         <link rel="prev" href="../count_number_fiber_crossing/">
       
       
-        <link rel="next" href="../analyse_fiber_plexus/">
+        <link rel="next" href="../analyse_fiber_network/">
       
       
         
@@ -859,14 +859,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../analyse_fiber_plexus/" class="md-nav__link">
+      <a href="../analyse_fiber_network/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Analyse Fiber Nerve Plexus
+    Analyse Fiber Nerve Network
   
 
     
@@ -936,7 +936,7 @@
 
 
 <h1 id="compute-fiber-density-per-biological-structure">Compute Fiber Density per Biological Structure<a class="headerlink" href="#compute-fiber-density-per-biological-structure" title="Permanent link">&para;</a></h1>
-<p>This task uses the previously segmented fibers to compute the fiber fraction volume of a biological structure such as large vessel, skin muscle or skin gland. It takes as input a multi-channel OME-Zarr image containing the label <code>fibers</code> (output of the task <a href="../fit_surface/"><strong>Segment Fiber</strong></a>). It will output new labels in the OME-Zarr image that are:</p>
+<p>This task uses the previously segmented fibers to compute the fiber fraction volume of a biological structure such as large vessel, skin muscle or skin gland. It takes as input a multi-channel OME-Zarr image containing the label <code>fibers</code> (output of the task <a href="../segment_fibers/"><strong>Segment Fiber</strong></a>). It will output new labels in the OME-Zarr image that are:</p>
 <ul>
 <li>structure mask (biological structure segmented from the image)</li>
 <li>labeled fibers (fibers with color coded label per separate fiber)</li>
