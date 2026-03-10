@@ -859,14 +859,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../analyse_fiber_plexus/" class="md-nav__link">
+      <a href="../analyse_fiber_network/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Analyse Fiber Nerve Plexus
+    Analyse Fiber Nerve Network
   
 
     
@@ -1065,17 +1065,23 @@ This parameter is especially useful when vessels or other bright features are cl
 <h3 id="analysis-resolution-level-optional">Analysis Resolution Level (optional)<a class="headerlink" href="#analysis-resolution-level-optional" title="Permanent link">&para;</a></h3>
 <p><strong>What it does</strong></p>
 <p>This parameter controls which resolution of the <strong>OME-Zarr multi-resolution pyramid</strong> is used to detect the Dermis–Epidermis junction.</p>
-<p>OME-Zarr images are stored as a <em>multi-resolution pyramid</em>:<br />
-- level 0 → full resolution (largest, most detailed)<br />
-- higher levels → downsampled versions (smaller, faster)</p>
+<p>OME-Zarr images are stored as a <em>multi-resolution pyramid</em>:  </p>
+<ul>
+<li>level 0 → full resolution (largest, most detailed)  </li>
+<li>higher levels → downsampled versions (smaller, faster)</li>
+</ul>
 <p><strong>Why it matters</strong></p>
-<p>Using a lower resolution:
-- uses <strong>less memory</strong>
-- runs <strong>faster</strong>
-- is usually sufficient and even better due to intensity averaging to detect the surface shape</p>
-<p>Using a very high resolution:
-- increases RAM usage
-- may cause the task to fail on large datasets</p>
+<p>Using a lower resolution:</p>
+<ul>
+<li>uses <strong>less memory</strong></li>
+<li>runs <strong>faster</strong></li>
+<li>is usually sufficient and even better due to intensity averaging to detect the surface shape</li>
+</ul>
+<p>Using a very high resolution:</p>
+<ul>
+<li>increases RAM usage</li>
+<li>may cause the task to fail on large datasets</li>
+</ul>
 <p><strong>How to choose</strong></p>
 <ul>
 <li>In most cases, the default value is sufficient</li>
