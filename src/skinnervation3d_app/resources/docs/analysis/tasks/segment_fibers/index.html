@@ -772,6 +772,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#correct-epidermis-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Correct Epidermis (optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#analysis-resolution-level" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -870,14 +881,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../analyse_fiber_plexus/" class="md-nav__link">
+      <a href="../analyse_fiber_network/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Analyse Fiber Nerve Plexus
+    Analyse Fiber Nerve Network
   
 
     
@@ -977,10 +988,10 @@ This parameter is tightly linked to the <a href="#fiber-percentile-recommended">
 <p><strong>What it does</strong></p>
 <p>This parameter controls the threshold at which the fibers are segmented. Image intensities above this threshold are selected as fibers.</p>
 <p><strong>How to choose</strong></p>
-<p>Depending on the strength of the PGP9.5 signal and the amount of the background noise, this parameter needs to be adjusted depending on the current case. The full range of 0-100 can be explored to find the best value. </p>
+<p>Depending on the strength of the PGP9.5 signal and the amount of the background noise, this parameter needs to be adjusted depending on the current case. The full range of 50-100 can be explored to find the best value. </p>
 <ul>
 <li>In most cases, high values are preferred (&gt;90) to ensure only fibers are segmented out. </li>
-<li>The range of valid values is 0-100.</li>
+<li>The range of valid values is 50-100.</li>
 <li>Small contrast between fibers and background -&gt; increase fiber threshold</li>
 <li>High contrast -&gt; decrease fiber threshold to catch also fainter fibers</li>
 </ul>
@@ -1029,20 +1040,47 @@ This parameter is tightly linked to the <a href="#background-percentile-recommen
 <li>In most cases, the default value is sufficient</li>
 <li>If there is still some overall sample signal in the PGP9.5 channel, try to increase this value to remove it further</li>
 </ul>
+<h3 id="correct-epidermis-optional">Correct Epidermis (optional)<a class="headerlink" href="#correct-epidermis-optional" title="Permanent link">&para;</a></h3>
+<p><strong>What it does</strong></p>
+<p>This parameter controls whether to correct for a strong signal in the upper part of the epidermis.</p>
+<p><strong>Why it matters</strong></p>
+<p>It can happen that the epidermis shows a strong signal that is almost of the same intensity as the fibers. It is therefore difficult for the algorithm to distinguish between the epidermis and the fibers using threshold-based approaches. With this parameter, the algorithm will try to correct for this signal by segmenting the epidermis and lowering the signal in this region.</p>
+<p><strong>How to choose</strong></p>
+<ul>
+<li>In most cases, it is not necessary to set this parameter to <code>True</code>.</li>
+<li>If the results are not satisfactory (epidermis segmented with the fibers), try to set this parameter to <code>True</code></li>
+</ul>
+<figure>
+<p>Here is an example of a too strong signal in the epidermis region:
+<img alt="Too much local background" src="../images/strong_signal_epidermis.png" width="50%" /></p>
+<figcaption></figcaption>
+</figure>
+<figure>
+<p>And the improvement using this parameter:
+<img alt="Reference image" src="../images/strong_signal_epidermis_solved.png" width="50%" /></p>
+<figcaption></figcaption>
+</figure>
 <h3 id="analysis-resolution-level">Analysis Resolution Level<a class="headerlink" href="#analysis-resolution-level" title="Permanent link">&para;</a></h3>
 <p><strong>What it does</strong></p>
 <p>This parameter controls which resolution of the <strong>OME-Zarr multi-resolution pyramid</strong> is used to detect the Dermis–Epidermis junction.</p>
-<p>OME-Zarr images are stored as a <em>multi-resolution pyramid</em>:<br />
-- level 0 → full resolution (largest, most detailed)<br />
-- higher levels → downsampled versions (smaller, faster)</p>
+<p>OME-Zarr images are stored as a <em>multi-resolution pyramid</em>:  </p>
+<ul>
+<li>level 0 → full resolution (largest, most detailed)  </li>
+<li>higher levels → downsampled versions (smaller, faster)</li>
+</ul>
 <p><strong>Why it matters</strong></p>
-<p>Using a lower resolution:
-- uses <strong>less memory</strong>
-- runs <strong>faster</strong>
-- is usually sufficient and even better due to intensity averaging to detect the surface shape</p>
-<p>Using a very high resolution:
-- increases RAM usage
-- may cause the task to fail on large datasets</p>
+<p>Using a lower resolution:</p>
+<ul>
+<li>uses <strong>less memory</strong></li>
+<li>runs <strong>faster</strong></li>
+<li>is usually sufficient and even better due to intensity averaging to detect the surface shape</li>
+</ul>
+<p>Using a very high resolution:</p>
+<ul>
+<li>increases RAM usage</li>
+<li>may cause the task to fail on large datasets</li>
+<li>might be counterproductive, as a slight downsampling reduces noise and improve fiber detection</li>
+</ul>
 <p><strong>How to choose</strong></p>
 <ul>
 <li>In most cases, the default value is sufficient</li>
