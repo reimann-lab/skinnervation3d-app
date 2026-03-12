@@ -54,7 +54,6 @@ dependencies = [
   "pydantic>=2",
   "PySide6>=6.6",
   "requests",
-  #"skinnervation3d-fractal-tasks",
   #"mesospim-fractal-tasks",
 ]
 # Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
