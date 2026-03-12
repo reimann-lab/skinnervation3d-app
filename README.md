@@ -11,13 +11,14 @@ The graphical interface allows to:
 
 ## Installation
 
-This application is intended for authorized users and is currently distributed privately.
-Some dependencies are not publicly available and must be provided separately (wheel or source archive or using a Personal Access Token PAT).
-This section describes how to install the application either using the installer script and manually.
+This application is intended for authorized users and has currently some of its dependencies that are being distributed privately.
+To be able to complete the installation, you need either a wheel or zip file of the dependencies or a Personal Access Token PAT. See the [installation guide](docs/installation.md) for more information on how to generate a PAT.
+
+This section describes how to install the application either using the installer script or manually.
 
 ### Automatic Installation
 
-The provided installer scripts will download all dependencies and install the application automatically. It is the recommended way to install the application. It supports macOS, Linux, and Windows.
+The provided installer scripts will download all dependencies and install the application automatically. It is the recommended way to install the application. It supports macOS, Linux, and Windows. You can find more information about the automatic installation in the [installation guide](docs/installation.md).
 
 ### Windows
 Download these two files into the same folder, then double-click `install.bat`:
@@ -30,6 +31,7 @@ Download these two files into the same folder, then run `bash install.sh` in a t
 - [install.py](https://raw.githubusercontent.com/org/skinnervation3d-app/main/install.py)
 
 Note: On MacOS, you can double-click `install.sh` in Finder (right-click → Open).
+
 
 ### Manual Installation
 
