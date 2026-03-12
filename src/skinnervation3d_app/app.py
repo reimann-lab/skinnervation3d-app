@@ -41,7 +41,7 @@ class AppController:
         self._show_opening_dialog()
 
     def _show_opening_dialog(self) -> None:
-        welcome = OpeningDialog()
+        welcome = OpeningDialog(self.docs_server)
         chosen_dir: Optional[Path] = None
 
         def on_dir_selected(p: Path) -> None:

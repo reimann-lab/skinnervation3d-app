@@ -47,12 +47,14 @@ class OpeningDialog(QDialog):
 
         choose_btn = QPushButton("Choose directory…")
         choose_btn.clicked.connect(self.choose_dir)
+        choose_btn.setDefault(True)
 
         self.intro_btn = QPushButton("Introduction")
         self.intro_btn.clicked.connect(self._open_intro_docs)
         self.intro_btn.setEnabled(
         self._docs_server is not None and self._intro_doc_path is not None
-    )
+        )
+        self.intro_btn.setAutoDefault(False)
 
         # --- Top bar (button aligned right)
         top_bar = QHBoxLayout()
@@ -66,9 +68,6 @@ class OpeningDialog(QDialog):
         layout.addWidget(desc)
         layout.addSpacing(12)
         layout.addWidget(self.dir_line)
-
-        choose_btn = QPushButton("Choose directory…")
-        choose_btn.clicked.connect(self.choose_dir)
 
         layout.addWidget(choose_btn)
 
