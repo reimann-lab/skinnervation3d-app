@@ -260,9 +260,9 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
 def pip_install(conda_exe: Path, env_name: str, package_dir: Path):
     """pip install -e a local package into a conda env."""
     step(f"pip install -e {package_dir.name} → env '{env_name}'")
-    run([conda_exe, "run", "--no-capture-output",
+    run([conda_exe, "run", "--no-capture-output", 
          "-n", env_name,
-         "pip", "install", "-e", str(package_dir)])
+         "pip", "install", "--no-cache-dir", "-e", str(package_dir)])
     ok(f"{package_dir.name} installed")
 
 

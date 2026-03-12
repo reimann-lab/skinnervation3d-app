@@ -22,13 +22,13 @@ The provided installer scripts will download all dependencies and install the ap
 
 ### Windows
 Download these two files into the same folder, then double-click `install.bat`:
-- [install.bat](https://raw.githubusercontent.com/org/skinnervation3d-app/main/install.bat)
-- [install.py](https://raw.githubusercontent.com/org/skinnervation3d-app/main/install.py)
+- [install.bat](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.bat)
+- [install.py](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.py)
 
 ### macOS / Linux
 Download these two files into the same folder, then run `bash install.sh` in a terminal:
-- [install.sh](https://raw.githubusercontent.com/org/skinnervation3d-app/main/install.sh)
-- [install.py](https://raw.githubusercontent.com/org/skinnervation3d-app/main/install.py)
+- [install.sh](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.sh)
+- [install.py](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.py)
 
 Note: On MacOS, you can double-click `install.sh` in Finder (right-click → Open).
 
