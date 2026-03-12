@@ -26,6 +26,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+src/skinnervation3d_app/config.py
 
 .DS_Store
 
