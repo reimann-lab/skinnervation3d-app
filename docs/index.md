@@ -1,0 +1,1 @@
+Intro to the app and navigation to installation and usage page.
