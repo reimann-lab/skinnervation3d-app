@@ -28,12 +28,13 @@ ARCH   = platform.machine()  # 'x86_64', 'arm64', 'AMD64'
 # ── Repositories ───────────────────────────────────────────────────────────────
 
 PUBLIC_REPOS = {
-    "napari-crop-plugin":        "https://github.com/girochat/napari-crop-plugin.git",
-    "mesospim-fractal-tasks":    "https://github.com/org/mesospim-fractal-tasks.git",
+    "napari-crop-tool":        "https://github.com/girochat/napari-crop-tool.git",
+    "skinnervation3d-app":             "https://github.com/reimann-lab/skinnervation3d-app.git",
+    
 }
 PRIVATE_REPOS = {
-    "skinnervation3d-app":             "https://github.com/org/skinnervation3d-app.git",
-    "skinnervation3d-fractal-tasks":   "https://github.com/org/skinnervation3d-fractal-tasks.git",
+    "mesospim-fractal-tasks":    "https://github.com/reimann-lab/mesospim-fractal-tasks.git",
+    "skinnervation3d-fractal-tasks":   "https://github.com/reimann-lab/skinnervation3d-fractal-tasks.git",
 }
 
 # ── Miniforge download URLs ────────────────────────────────────────────────────
@@ -480,10 +481,10 @@ def main():
 
     # ── Napari environment ─────────────────────────────────────────────────────
     header(f"Step 4 / 6 — Environment '{NAPARI_ENV}'")
-    create_env(conda_exe, NAPARI_ENV, repos / "napari-crop-plugin", base)
+    create_env(conda_exe, NAPARI_ENV, repos / "napari-crop-tool", base)
 
     # pip install the napari plugin into its own env
-    pip_install(conda_exe, NAPARI_ENV, repos / "napari-crop-plugin")
+    pip_install(conda_exe, NAPARI_ENV, repos / "napari-crop-tool")
 
     # ── App environment ────────────────────────────────────────────────────────
     header(f"Step 5 / 6 — Environment '{APP_ENV}'")
