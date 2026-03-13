@@ -19,11 +19,11 @@ To be able to download the private repositories that are part of the software de
 2. Click **"Generate new token" (fine-grained, repo-scoped)** (!! not the classic option)
 3. You can now give it a name to identify it (e.g. `SkInnervation3D install`) and set the ownership to yourself or the organisation the repositories belong to. You can also set an expiration date.
 
-![Fine-grained token setup](./images/token_setup.png){ width="40%" }
+![Fine-grained token setup](./images/token_setup.png)
 
 4. Under *Repository access*, select all the private repositories you want to grant access to (here `skinnervation-fractal-tasks`). Finally, give it the *contents* permission, so that it can clone the repositories locally.
 
-![Repository access](./images/token_repo_access.png){ width="40%" }
+![Repository access](./images/token_repo_access.png)
 
 
 5. Click **"Generate token"** and copy it safely. ⚠ The token is shown only once. Keep it somewhere safe until the install is done.

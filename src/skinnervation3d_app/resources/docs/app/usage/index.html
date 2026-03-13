@@ -77,6 +77,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#usage" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -317,6 +322,26 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -334,6 +359,130 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-a-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating a Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#editing-task-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing Task Parameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#channel-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Channel settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#image-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image List
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualisation-in-napari" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualisation in Napari
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -359,9 +508,71 @@
   
 
 
-  <h1>Usage</h1>
+<h1 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h1>
+<h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
+<p>To start using the SkInnervation3D User Interface, you need to select the directory that contains the files you want to process. This is done in the opening window once you launch the application.</p>
+<p><img alt="Opening window" src="../images/intro_window.png" /></p>
+<p>Once the analysis directory is set, it will only process and output files in this directory. It will also output the logs about the workflow you have launched in this directory.</p>
+<hr />
+<h2 id="creating-a-workflow">Creating a Workflow<a class="headerlink" href="#creating-a-workflow" title="Permanent link">&para;</a></h2>
+<p>You can create a workflow by selecting tasks in the left panel to add them to the workflow list. Tasks will be processed <strong>from top to bottom</strong> — each task in the workflow list will use the output image of the previous task and so on.</p>
+<p><img alt="Workflow panel overview" src="../images/workflow_panel.png" /></p>
+<p>A typical workflow is composed of two separate parts:</p>
+<h3 id="pre-processing">Pre-processing<a class="headerlink" href="#pre-processing" title="Permanent link">&para;</a></h3>
+<p>This part is about preparing the raw image so it can be analysed. The steps are usually performed in the following order:</p>
+<ol>
+<li><strong>Mesospim to OmeZarr</strong> or <strong>Prepare mesoSPIM OME-Zarr</strong></li>
+<li><strong>Flatfield Correction</strong></li>
+<li><strong>Full Sample Cropping</strong> (Crop Regions of Interest)<ul>
+<li>This requires defining a crop region <strong>before</strong> running the task using the napari crop plugin</li>
+</ul>
+</li>
+<li><strong>Illumination Correction</strong></li>
+<li><strong>Stitching</strong></li>
+</ol>
+<p>Additionally, you can also use <strong>Modify OME-Zarr Structure</strong> to modify the structure of an existing OME-Zarr, such as the size of the multi-resolution pyramid or the channel names/colors. </p>
+<p>Finally, once you are done analysing an image, you can archive it by using <strong>Archive or Dearchive OME-Zarr</strong>. This will compress 2-3x the images in the OME-Zarr and output a unique TAR file containing the archived OME-Zarr.</p>
+<h3 id="analysis">Analysis<a class="headerlink" href="#analysis" title="Permanent link">&para;</a></h3>
+<p>This part concerns all the analyses that can be performed on the regions of interest — for example, those taken at the DEJ or a muscle/gland. The steps can vary depending on the type of ROI.</p>
+<p><strong>DEJ ROI:</strong></p>
+<div class="codehilite"><pre><span></span><code>Fit Surface → Segment Fibers → Count Fiber Crossings → Analyse Plexus → Export Results
+</code></pre></div>
 
-<p>Short Usage introduction</p>
+<p><strong>Muscle/Gland ROI:</strong></p>
+<div class="codehilite"><pre><span></span><code>Segment Fibers → Compute Fiber Density → Analyse Plexus → Export Results
+</code></pre></div>
+
+<hr />
+<h2 id="editing-task-parameters">Editing Task Parameters<a class="headerlink" href="#editing-task-parameters" title="Permanent link">&para;</a></h2>
+<p>By clicking on a given task in the workflow list, you can edit its parameters in the right panel. Hovering over a parameter with the mouse will display a short description.</p>
+<p><img alt="Task parameter editing panel" src="../images/task_param.png" /></p>
+<p>For more details on important parameters, click the <strong>More info...</strong> button. This will open the documentation in your browser — you can still navigate to other tabs while using the app.</p>
+<blockquote>
+<p><strong>Note:</strong> Once the application is closed, the documentation will no longer be available.</p>
+</blockquote>
+<p><img alt="More info documentation view" src="../images/more_info_button.png" /></p>
+<hr />
+<h2 id="channel-settings">Channel settings<a class="headerlink" href="#channel-settings" title="Permanent link">&para;</a></h2>
+<p>The channel settings are used to define the channel names and colors in the OME-Zarr. There are already some defautl settings saved in the application. You can view the existing settings by clicking on the <strong>Add/mdofiy channel settings</strong> button when you are using the task <strong>MesoSPIM to OmeZarr</strong> or <strong>Prepare mesoSPIM OME-Zarr</strong>.</p>
+<p><img alt="Channel settings button" src="../images/modify_channel_settings.png" /></p>
+<p>In the channel settings window, you can view the existing channel settings. To use a given channel setting, you need to provide its name in the corresponding parameter of the task. You can also add a new channel setting by clicking on the <strong>New</strong> button if no current channel settings match your needs.</p>
+<p><img alt="Channel settings window" src="../images/new_channel_settings.png" /></p>
+<hr />
+<h2 id="workflow-execution">Workflow Execution<a class="headerlink" href="#workflow-execution" title="Permanent link">&para;</a></h2>
+<p>Once you have created a workflow, you can run it by clicking on the <strong>Run workflow</strong> button.</p>
+<hr />
+<h2 id="image-list">Image List<a class="headerlink" href="#image-list" title="Permanent link">&para;</a></h2>
+<p>Before running the workflow, you need to select the image in the OME-Zarr that should be processed. If you are running the conversion task, select the <strong>No OME-Zarr image</strong> option.</p>
+<p><img alt="Image list selection" src="../images/image_list.png" /></p>
+<hr />
+<h2 id="visualisation-in-napari">Visualisation in Napari<a class="headerlink" href="#visualisation-in-napari" title="Permanent link">&para;</a></h2>
+<p>You can visualise images directly in Napari. This launches a Napari instance with the <strong>Cropping Tool</strong> pre-installed.</p>
+<p>To launch the Cropping Tool:</p>
+<ol>
+<li>Open the <strong>Plugins</strong> tab in Napari</li>
+<li>Select <strong>Crop Tool</strong> from the menu</li>
+</ol>
+<p><img alt="Napari crop tool plugin menu" src="../images/napari_crop_tool.png" /></p>
 
 
 

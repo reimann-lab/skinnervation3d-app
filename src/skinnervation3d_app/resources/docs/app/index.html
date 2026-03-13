@@ -77,6 +77,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#skinnervation3d" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -263,6 +268,26 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="." class="md-nav__link md-nav__link--active">
         
@@ -280,6 +305,47 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#more-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        More Information
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -359,9 +425,31 @@
   
 
 
-  <h1>Home</h1>
-
-<p>Intro to the app and navigation to installation and usage page.</p>
+<h1 id="skinnervation3d">SkInnervation3D<a class="headerlink" href="#skinnervation3d" title="Permanent link">&para;</a></h1>
+<p><strong>SkInnervation3D</strong> is a desktop application that provides a graphical interface for defining and running image-analysis workflows — no coding required.</p>
+<p>Typical workflows are typically built in two main stages:</p>
+<ul>
+<li><strong>Pre-processing</strong> — whole-sample processing: conversion to OME-Zarr, flatfield correction, illumination correction, stitching, and more</li>
+<li><strong>Analysis</strong> — skin innervation analysis: fiber segmentation, counting, surface fitting, plexus analysis, and more</li>
+</ul>
+<hr />
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The application lets you:</p>
+<ol>
+<li>Set an <strong>analysis directory</strong> — all outputs and logs will be written here</li>
+<li>Build a <strong>workflow</strong> by selecting and ordering tasks in the left panel</li>
+<li>Configure <strong>task parameters</strong> for each step</li>
+<li>Select the <strong>image</strong> to process from the OME-Zarr dataset</li>
+<li><strong>Run</strong> the workflow and monitor progress</li>
+</ol>
+<hr />
+<h2 id="more-information">More Information<a class="headerlink" href="#more-information" title="Permanent link">&para;</a></h2>
+<p>Please refer to the other section of the documentation to have more information on how to use and install the application:</p>
+<ul>
+<li><a href="usage/">Usage</a></li>
+<li><a href="installation/">Installation</a></li>
+</ul>
+<hr />
 
 
 
