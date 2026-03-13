@@ -6,12 +6,10 @@ Run via install.sh (Mac/Linux) or install.bat (Windows).
 """
 
 import sys
-import os
 import platform
 import subprocess
 import shutil
 import urllib.request
-import urllib.error
 import tempfile
 import getpass
 from pathlib import Path
@@ -29,11 +27,10 @@ ARCH   = platform.machine()  # 'x86_64', 'arm64', 'AMD64'
 
 PUBLIC_REPOS = {
     "napari-crop-tool":        "https://github.com/girochat/napari-crop-tool.git",
+    "mesospim-fractal-tasks":    "https://github.com/reimann-lab/mesospim-fractal-tasks.git",
     "skinnervation3d-app":             "https://github.com/reimann-lab/skinnervation3d-app.git",
-    
 }
 PRIVATE_REPOS = {
-    "mesospim-fractal-tasks":    "https://github.com/reimann-lab/mesospim-fractal-tasks.git",
     "skinnervation3d-fractal-tasks":   "https://github.com/reimann-lab/skinnervation3d-fractal-tasks.git",
 }
 
@@ -260,7 +257,7 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
 def pip_install(conda_exe: Path, env_name: str, package_dir: Path):
     """pip install -e a local package into a conda env."""
     step(f"pip install -e {package_dir.name} → env '{env_name}'")
-    run([conda_exe, "run", "--no-capture-output", 
+    run([conda_exe, "run", "--no-capture-output",
          "-n", env_name,
          "pip", "install", "--no-cache-dir", "-e", str(package_dir)])
     ok(f"{package_dir.name} installed")
@@ -333,80 +330,176 @@ ANALYSIS_DIR_INIT     = Path("{py_path(data_dir)}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Desktop shortcut
+#  Launchers + Desktop shortcuts
+#
+#  Strategy (all platforms):
+#    • A launcher script is written INSIDE the conda env (not on the Desktop)
+#    • A lightweight desktop shortcut points at that launcher
+#
+#  Windows  : launcher = <env>/launch.bat
+#             shortcut = Desktop/<Name>.lnk  (real Windows shortcut via PowerShell)
+#  macOS    : launcher = <env>/bin/launch.command  (executable bash script)
+#             shortcut = Desktop/<Name>.command     (tiny wrapper that calls it)
+#  Linux    : launcher = <env>/bin/launch.sh
+#             shortcut = Desktop/<Name>.desktop
 # ══════════════════════════════════════════════════════════════════════════════
 
-def create_shortcut(base: Path):
-    desktop = Path.home() / "Desktop"
-    desktop.mkdir(exist_ok=True)
+# ── helpers ───────────────────────────────────────────────────────────────────
 
-    if SYSTEM == "Windows":
-        _shortcut_windows(desktop, base)
-    elif SYSTEM == "Darwin":
-        _shortcut_mac(desktop, base)
-    else:
-        _shortcut_linux(desktop, base)
+def _env_dir(base: Path, env: str) -> Path:
+    return base / "envs" / env
+
+
+def _write_file(path: Path, content: str, executable: bool = False):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    if executable and SYSTEM != "Windows":
+        path.chmod(0o755)
+
+
+def _windows_lnk(lnk_path: Path, target: Path, description: str = ""):
+    """Create a real .lnk shortcut on Windows via PowerShell."""
+    ps = (
+        f'$s = (New-Object -ComObject WScript.Shell).CreateShortcut("{lnk_path}");\n'
+        f'$s.TargetPath = "{target}";\n'
+        f'$s.Description = "{description}";\n'
+        f'$s.Save()'
+    )
+    run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps])
+
+
+# ── Windows ───────────────────────────────────────────────────────────────────
+
+def _make_windows_launcher(base: Path, env: str, command: str) -> Path:
+    """Write a launch.bat inside the conda env and return its path."""
+    activate = base / "Scripts" / "activate.bat"
+    bat = _env_dir(base, env) / "launch.bat"
+    _write_file(bat, (
+        "@echo off\n"
+        f'call "{activate}" {env}\n'
+        f"{command}\n"
+    ))
+    ok(f"Launcher written → {bat}")
+    return bat
 
 
 def _shortcut_windows(desktop: Path, base: Path):
-    """
-    Two files:
-      SkInnervation3D.vbs  — launches without a console window
-      SkInnervation3D.bat  — fallback / what the .vbs calls
-    """
-    app_exe = base / "envs" / APP_ENV / "Scripts" / "skin3d-app.exe"
+    # skin3d-app
+    app_exe = _env_dir(base, APP_ENV) / "Scripts" / "skin3d-app.exe"
+    app_bat = _make_windows_launcher(base, APP_ENV,
+                  f'if exist "{app_exe}" (start "" "{app_exe}") '
+                  f'else (python -m skinnervation3d_app)')
+    lnk = desktop / "SkInnervation3D.lnk"
+    _windows_lnk(lnk, app_bat, "Launch SkInnervation3D")
+    ok(f"Desktop shortcut → {lnk}")
 
-    # .bat (used internally)
-    bat = desktop / "SkInnervation3D.bat"
-    bat.write_text(
-        f'@echo off\n'
-        f'call "{base}\\Scripts\\activate.bat" {APP_ENV}\n'
-        f'if exist "{app_exe}" (\n'
-        f'    start "" "{app_exe}"\n'
-        f') else (\n'
-        f'    python -m skinnervation3d_app\n'
-        f')\n'
-    )
+    # napari-crop
+    napari_bat = _make_windows_launcher(base, NAPARI_ENV, "napari")
+    lnk2 = desktop / "NapariCrop.lnk"
+    _windows_lnk(lnk2, napari_bat, "Launch Napari (crop tool)")
+    ok(f"Desktop shortcut → {lnk2}")
 
-    # .vbs wrapper — hides the console entirely
-    vbs = desktop / "SkInnervation3D.vbs"
-    vbs.write_text(
-        'Set oShell = CreateObject("WScript.Shell")\n'
-        f'oShell.Run chr(34) & "{app_exe}" & chr(34), 0, False\n'
-    )
-    ok(f"Desktop shortcut created → {vbs}")
-    ok(f"Batch fallback          → {bat}")
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+
+def _make_mac_launcher(base: Path, env: str, command: str) -> Path:
+    """Write an executable .command script inside <env>/bin/ and return its path."""
+    conda_sh = base / "etc" / "profile.d" / "conda.sh"
+    script = _env_dir(base, env) / "bin" / "launch.command"
+    _write_file(script, (
+        "#!/usr/bin/env bash\n"
+        f'source "{conda_sh}"\n'
+        f"conda activate {env}\n"
+        f"{command}\n"
+    ), executable=True)
+    ok(f"Launcher written → {script}")
+    return script
 
 
 def _shortcut_mac(desktop: Path, base: Path):
-    """A .command file the user can double-click in Finder."""
-    conda_sh = base / "etc" / "profile.d" / "conda.sh"
-    script   = desktop / "SkInnervation3D.command"
-    script.write_text(
-        f'#!/usr/bin/env bash\n'
-        f'source "{conda_sh}"\n'
-        f'conda activate {APP_ENV}\n'
-        f'skin3d-app\n'
-    )
-    script.chmod(0o755)
-    ok(f"Desktop shortcut created → {script}")
+    # skin3d-app
+    app_launcher = _make_mac_launcher(base, APP_ENV, "skin3d-app")
+    apps = Path("/Applications")
+    wrapper = apps / "SkInnervation3D.command"
+    _write_file(wrapper, (
+        "#!/usr/bin/env bash\n"
+        f'exec "{app_launcher}"\n'
+    ), executable=True)
+    ok(f"App shortcut → {wrapper}")
+
+    # napari-crop
+    napari_launcher = _make_mac_launcher(base, NAPARI_ENV, "napari")
+    wrapper2 = apps / "NapariCrop.command"
+    _write_file(wrapper2, (
+        "#!/usr/bin/env bash\n"
+        f'exec "{napari_launcher}"\n'
+    ), executable=True)
+    ok(f"App shortcut → {wrapper2}")
+
     print("   Tip: right-click → Open the first time to bypass Gatekeeper.")
 
 
-def _shortcut_linux(desktop: Path, base: Path):
+# ── Linux ─────────────────────────────────────────────────────────────────────
+
+def _make_linux_launcher(base: Path, env: str, command: str) -> Path:
+    """Write an executable shell script inside <env>/bin/ and return its path."""
     conda_sh = base / "etc" / "profile.d" / "conda.sh"
-    df = desktop / "SkInnervation3D.desktop"
-    df.write_text(
+    script = _env_dir(base, env) / "bin" / "launch.sh"
+    _write_file(script, (
+        "#!/usr/bin/env bash\n"
+        f'source "{conda_sh}"\n'
+        f"conda activate {env}\n"
+        f"{command}\n"
+    ), executable=True)
+    ok(f"Launcher written → {script}")
+    return script
+
+
+def _shortcut_linux(desktop: Path, base: Path):
+    # ~/.local/share/applications — user-level app menu, no sudo needed
+    apps = Path.home() / ".local" / "share" / "applications"
+    apps.mkdir(parents=True, exist_ok=True)
+
+    # skin3d-app
+    app_launcher = _make_linux_launcher(base, APP_ENV, "skin3d-app")
+    df = apps / "SkInnervation3D.desktop"
+    _write_file(df, (
         "[Desktop Entry]\n"
         f"Name={APP_NAME}\n"
         "Type=Application\n"
         "Terminal=false\n"
-        f'Exec=bash -c \'source "{conda_sh}" && conda activate {APP_ENV} && skin3d-app\'\n'
+        f'Exec=bash -c "{app_launcher}"\n'
         "Icon=\n"
         "Categories=Science;\n"
-    )
-    df.chmod(0o755)
-    ok(f"Desktop shortcut created → {df}")
+    ), executable=True)
+    ok(f"App menu entry → {df}")
+
+    # napari-crop
+    napari_launcher = _make_linux_launcher(base, NAPARI_ENV, "napari")
+    df2 = apps / "NapariCrop.desktop"
+    _write_file(df2, (
+        "[Desktop Entry]\n"
+        "Name=NapariCrop\n"
+        "Type=Application\n"
+        "Terminal=false\n"
+        f'Exec=bash -c "{napari_launcher}"\n'
+        "Icon=\n"
+        "Categories=Science;\n"
+    ), executable=True)
+    ok(f"App menu entry → {df2}")
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def create_shortcuts(base: Path):
+    if SYSTEM == "Windows":
+        desktop = Path.home() / "Desktop"
+        desktop.mkdir(exist_ok=True)
+        _shortcut_windows(desktop, base)
+    elif SYSTEM == "Darwin":
+        _shortcut_mac(None, base)
+    else:
+        _shortcut_linux(None, base)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -507,7 +600,7 @@ def main():
         data_dir   = data_dir,
     )
 
-    create_shortcut(base)
+    create_shortcuts(base)
 
     # ── Done ───────────────────────────────────────────────────────────────────
     header("Installation complete! 🎉")
@@ -516,7 +609,8 @@ def main():
         f"\n  config.py        : {config_path}"
         f"\n  Conda envs       : {APP_ENV}  |  {NAPARI_ENV}"
         f"\n"
-        f"\n  ▶  Double-click the SkInnervation3D shortcut on your Desktop to launch."
+        f"\n  ▶  Double-click 'SkInnervation3D' on your Desktop to launch the app."
+        f"\n  ▶  Double-click 'NapariCrop' on your Desktop to launch Napari."
         f"\n"
         f"\n  Manual launch (if shortcut fails):"
         f"\n      conda activate {APP_ENV}"
