@@ -21,16 +21,12 @@ This section describes how to install the application either using the installer
 The provided installer scripts will download all dependencies and install the application automatically. It is the recommended way to install the application. It supports macOS, Linux, and Windows. You can find more information about the automatic installation in the [installation guide](docs/installation.md).
 
 ### Windows
-Download these two files into the same folder, then double-click `install.bat`:
-- [install.bat](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.bat)
-- [install.py](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.py)
+Download the latest release of the [Windows Installer](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/windows_installer.zip), unzip it and run the installer by double-clicking on the file `install.bat` inside the folder.
+
 
 ### macOS / Linux
 Download these two files into the same folder, then run `bash install.sh` in a terminal:
-- [install.sh](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.sh)
-- [install.py](https://raw.githubusercontent.com/reimann-lab/skinnervation3d-app/main/install.py)
-
-Note: On MacOS, you can double-click `install.sh` in Finder (right-click → Open).
+Download the latest release of the [Linux/MacOS Installer](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/linux_mac_installer.zip), unzip it and run the installer by double-clicking on the file `install.sh` inside the folder for MacOS or run `bash install.sh` in a terminal for Linux.
 
 
 ### Manual Installation
