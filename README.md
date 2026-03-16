@@ -70,7 +70,7 @@ or with conda-lock:
 
 3. Install Dependencies
 
-    Install the SkInnervation3D app and the dependencies in the Conda/Mamba environment. The easiest way is to download a wheel file from the [releases page](https://github.com/reimann-lab/skinnervation3d-app/releases) and install it with pip:
+    Install the SkInnervation3D app and the dependencies in the Conda/Mamba environment. The easiest way is to download a wheel file from their releases page ([skinnervation3d-app](https://github.com/reimann-lab/skinnervation3d-app/releases), [skinnervation3d-fractal-tasks](https://github.com/reimann-lab/skinnervation3d-fractal-tasks/releases), [mesospim-fractal-tasks](https://github.com/reimann-lab/mesospim-fractal-tasks/releases)) and install it with pip:
 
     ```
     pip install skinnervation3d_app-*.whl
@@ -80,7 +80,7 @@ or with conda-lock:
 
 4. Install the Napari dependency (for visualisation)
 
-    It is recommended to install Napari and the Napari Crop plugin in a separate environment for better isolation. The plugin has not yet been published to the Napari Hub, thus you need to download a wheel file from the [releases page](https://github.com/girochat/napari-crop-tool/releases) and install it with pip:
+    It is recommended to install Napari and the Napari Crop plugin in a separate environment for better isolation. The plugin has not yet been published to the Napari Hub, thus you need to download a wheel file from its [releases page](https://github.com/girochat/napari-crop-tool/releases) and install it with pip:
 
     ```
     mamba env create -f environment_napari.yml
