@@ -14,25 +14,27 @@ The graphical interface allows to:
 ## Installation
 
 This application is intended for authorized users and has currently some of its dependencies that are being distributed privately.
-To be able to complete the installation, you need either a wheel or zip file of the dependencies or a Personal Access Token PAT. See the [installation guide](docs/installation.md) for more information on how to generate a PAT.
+To be able to complete the installation, you need either a wheel or zip file of the dependencies or a Personal Access Token PAT. See the [installation guide](https://reimann-lab.github.io/skinnervation3d-app/installation) for more information on how to generate a PAT.
 
 This section describes how to install the application either using the installer script or manually.
 
-### Automatic Installation
+---
 
-The provided installer scripts will download all dependencies and install the application automatically. It is the recommended way to install the application. It supports macOS, Linux, and Windows. You can find more information about the automatic installation in the [installation guide](docs/installation.md).
+### A. Automatic Installation
 
-### Windows
+The provided installer scripts will download all dependencies and install the application automatically. It is the recommended way to install the application. It supports macOS, Linux, and Windows. You can find more information about the automatic installation in the [installation guide](https://reimann-lab.github.io/skinnervation3d-app/installation).
+
+#### Windows
 Download the latest release of the [Windows Installer](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/windows_installer.zip), unzip it and run the installer by double-clicking on the file `install.bat` inside the folder.
 
 
-### macOS / Linux
+#### macOS / Linux
 Download these two files into the same folder, then run `bash install.sh` in a terminal:
 Download the latest release of the [Linux/MacOS Installer](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/linux_mac_installer.zip), unzip it and run the installer by double-clicking on the file `install.sh` inside the folder for MacOS or run `bash install.sh` in a terminal for Linux.
 
 ---
 
-### Manual Installation
+### B. Manual Installation
 
 #### Requirements
 
@@ -40,7 +42,6 @@ Download the latest release of the [Linux/MacOS Installer](https://github.com/re
 - Operating system: macOS, Linux, Windows  
 - Recommended environment manager:  
 	- conda or mamba (via Miniforge)  
-	- pyenv also works for advanced users  
 
 ⚠️ Using a virtual environment is strongly recommended.
 
@@ -54,10 +55,16 @@ Download the latest release of the [Linux/MacOS Installer](https://github.com/re
 
 2. Create a Conda or Mamba environment
 
-    An environment.yml file is provided to ensure all dependencies are installed with compatible versions. First, run in the terminal:
+    An environment.yml file is provided to ensure all dependencies are installed with compatible versions. If you have conda-lock installed, a conda-lock.yml file is also provided for full reproducibility. First, run in the terminal:
 
     ```
     mamba env create -f environment.yml  
+    mamba activate skin3d-app
+    ```
+or with conda-lock:
+
+	```
+    conda-lock install -n skin3d-app conda-lock.yml
     mamba activate skin3d-app
     ```
 
