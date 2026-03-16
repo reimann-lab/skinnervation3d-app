@@ -1,4 +1,5 @@
 site_name: SkInnervation3D App
+site_url: https://reimann-lab.github.io/skinnervation3d-app
 site_description: User interface to run Fractal task-based image analysis workflows.
 site_author: Giliane Rochat
 repo_url: https://github.com/reimann-lab/skinnervation3d-app

@@ -9,6 +9,8 @@ The graphical interface allows to:
 - run them in order  
 - monitor progress and logs  
 
+---
+
 ## Installation
 
 This application is intended for authorized users and has currently some of its dependencies that are being distributed privately.
@@ -28,6 +30,7 @@ Download the latest release of the [Windows Installer](https://github.com/reiman
 Download these two files into the same folder, then run `bash install.sh` in a terminal:
 Download the latest release of the [Linux/MacOS Installer](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/linux_mac_installer.zip), unzip it and run the installer by double-clicking on the file `install.sh` inside the folder for MacOS or run `bash install.sh` in a terminal for Linux.
 
+---
 
 ### Manual Installation
 
@@ -77,4 +80,10 @@ Download the latest release of the [Linux/MacOS Installer](https://github.com/re
     mamba activate napari-crop
     pip install napari_crop_tool-*.whl
     ```
+---
 
+## License
+
+This project is licensed under the **BSD 3-Clause License** — see [LICENSE](LICENSE) for details.
+
+---
