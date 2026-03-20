@@ -1,5 +1,8 @@
 # SkInnervation3D – User Interface
 
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue)](https://reimann-lab.github.io/skinnervation3d-app/)
+
 This application is a desktop tool that provides a user interface to define image-analysis workflows without writing code. The workflows are defined using Fractal task packages for image pre-processing (whole sample processing: conversion to OME-Zarr, illumination correction, stitching, etc.) and downstream skin innervation analysis (fiber segmentation, counting, surface fitting, etc.).
 
 The graphical interface allows to:  
@@ -7,7 +10,9 @@ The graphical interface allows to:
 - select an image dataset  
 - configure analysis steps  
 - run them in order  
-- monitor progress and logs  
+- monitor progress and logs 
+
+For more information on how to use the application, see the [Usage](https://reimann-lab.github.io/skinnervation3d-app/usage) documentation.
 
 ---
 
