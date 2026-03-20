@@ -59,8 +59,6 @@ class WorkflowWindow(QMainWindow):
 
         self.analysis_dir = analysis_dir
         self.log_path = analysis_dir / "logs"
-        if not self.log_path.exists():
-            self.log_path.mkdir()
         self.workflow_log_path = None
         self.selected_image: Optional[Path] = None
         self.tasks = tasks
@@ -718,6 +716,9 @@ class WorkflowWindow(QMainWindow):
         if self.thread is not None and self.thread.isRunning():
             QMessageBox.information(self, "Busy", "A workflow is still running.")
             return
+    
+        if not self.log_path.exists():
+            self.log_path.mkdir()
 
         # Logging
         self.log_emitter = QtLogEmitter()
