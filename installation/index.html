@@ -562,7 +562,7 @@
 </tr>
 <tr>
 <td><strong>Git</strong></td>
-<td>the installer will tell you if it's missing (see <a href="#git-installation">Troubleshooting - Git Installation</a>) for more info on how to install Git</td>
+<td>The installer will tell you if it's missing (see <a href="#git-installation">Troubleshooting - Git Installation</a>) for more info on how to install Git</td>
 </tr>
 <tr>
 <td><strong>GitHub PAT</strong></td>
@@ -589,7 +589,7 @@
 <p><img alt="Repository access" src="../images/token_repo_access.png" /></p>
 <ol>
 <li>Click <strong>"Generate token"</strong> and copy it safely. ⚠ The token is shown only once. Keep it somewhere safe until the install is done.</li>
-<li>During installation, you will be asked to enter the token. You can copy paste it when prompted. It won't appear as typed in, that is normal, just press enter after copy-pasting it.</li>
+<li>During installation, you will be asked to enter the token. You can copy paste it when prompted. It won't appear as you type, that is normal, just press enter after copy-pasting it.</li>
 </ol>
 <hr />
 <h2 id="installation-steps-per-os">Installation steps per OS<a class="headerlink" href="#installation-steps-per-os" title="Permanent link">&para;</a></h2>
@@ -626,7 +626,7 @@
 <hr />
 <h2 id="updating">Updating<a class="headerlink" href="#updating" title="Permanent link">&para;</a></h2>
 <p>To update the application and all necessary packages to the latest version, re-run the installer. It will update
-(<code>git pull</code>) each package instead instead of re-cloning, and skip environment creation if
+(<code>git pull</code>) each package instead of re-cloning, and skip environment creation if
 the environments already exist.</p>
 <h3 id="for-technical-users">For technical users<a class="headerlink" href="#for-technical-users" title="Permanent link">&para;</a></h3>
 <p>If you want to force a full reinstall of a specific conda environment, you can simply remove it:</p>
@@ -651,12 +651,12 @@ conda<span class="w"> </span>env<span class="w"> </span>remove<span class="w"> <
 <td>Install Git from <a href="https://git-scm.com">git-scm.com</a>. See <a href="#git-installation">Troubleshooting - Git Installation</a> for more infos</td>
 </tr>
 <tr>
-<td><code>Authentication failed</code> cloning repos</td>
+<td><code>Authentication failed</code> when cloning repos</td>
 <td>Check your PAT has <code>contents</code> permissions for all private repositories and hasn't expired</td>
 </tr>
 <tr>
 <td>App shortcut doesn't open</td>
-<td>Open a terminal (macOS or Linus) or the miniforge prompt (Windows), run <code>conda activate skin3d-app</code> then <code>skin3d-app</code>. For windows, if this still fails, type <code>python -m skinnervation3d_app</code> instead of <code>skin3d-app</code></td>
+<td>Open a terminal (macOS or Linux) or the miniforge prompt (Windows), run <code>conda activate skin3d-app</code> then <code>skin3d-app</code>. For windows, if this still fails, type <code>python -m skinnervation3d_app</code> instead of <code>skin3d-app</code></td>
 </tr>
 <tr>
 <td>Windows: PowerShell execution policy error</td>
@@ -664,7 +664,7 @@ conda<span class="w"> </span>env<span class="w"> </span>remove<span class="w"> <
 </tr>
 <tr>
 <td>Conda env creation fails</td>
-<td>Delete the partial env with <code>conda env remove -n skin3d-app</code> in a terminal (macOS or Linus) or the miniforge prompt (Windows) and re-run the installer</td>
+<td>Delete the partial env with <code>conda env remove -n skin3d-app</code> in a terminal (macOS or Linux) or the miniforge prompt (Windows) and re-run the installer</td>
 </tr>
 </tbody>
 </table>
