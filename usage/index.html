@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -475,7 +475,7 @@
   <a href="#visualisation-in-napari" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Visualisation in Napari
+        Visualisation in napari
       
     </span>
   </a>
@@ -524,7 +524,7 @@
 <p>This part is about preparing the raw image so it can be analysed. The steps are usually performed in the following order:</p>
 <ol>
 <li><strong>Mesospim to OmeZarr</strong> or <strong>Prepare mesoSPIM OME-Zarr</strong></li>
-<li><strong>Flatfield Correction</strong></li>
+<li><strong>Flat-field Correction</strong></li>
 <li><strong>Full Sample Cropping</strong> (Crop Regions of Interest)<ul>
 <li>This requires defining a crop region <strong>before</strong> running the task using the napari crop plugin</li>
 </ul>
@@ -533,7 +533,7 @@
 <li><strong>Stitching</strong></li>
 </ol>
 <p>Additionally, you can also use <strong>Modify OME-Zarr Structure</strong> to modify the structure of an existing OME-Zarr, such as the size of the multi-resolution pyramid or the channel names/colors. </p>
-<p>Finally, once you are done analysing an image, you can archive it by using <strong>Archive or Dearchive OME-Zarr</strong>. This will compress 2-3x the images in the OME-Zarr and output a unique TAR file containing the archived OME-Zarr.</p>
+<p>Finally, once you are done analysing an image, you can archive it by using <strong>Archive or Dearchive OME-Zarr</strong>. This will compress the images by 2-3x in the OME-Zarr and output a unique TAR file containing the archived OME-Zarr.</p>
 <h3 id="analysis">Analysis<a class="headerlink" href="#analysis" title="Permanent link">&para;</a></h3>
 <p>This part concerns all the analyses that can be performed on the regions of interest — for example, those taken at the DEJ or a muscle/gland. The steps can vary depending on the type of ROI.</p>
 <p><strong>DEJ ROI:</strong></p>
@@ -555,7 +555,7 @@
 <p><img alt="More info documentation view" src="../images/more_info_button.png" /></p>
 <hr />
 <h2 id="channel-settings">Channel settings<a class="headerlink" href="#channel-settings" title="Permanent link">&para;</a></h2>
-<p>The channel settings are used to define the channel names and colors in the OME-Zarr. There are already some defautl settings saved in the application. You can view the existing settings by clicking on the <strong>Add/mdofiy channel settings</strong> button when you are using the task <strong>MesoSPIM to OmeZarr</strong> or <strong>Prepare mesoSPIM OME-Zarr</strong>.</p>
+<p>The channel settings are used to define the channel names and colors in the OME-Zarr. There are already some default settings saved in the application. You can view the existing settings by clicking on the <strong>Add/modify channel settings</strong> button when you are using the task <strong>mesoSPIM to OmeZarr</strong> or <strong>Prepare mesoSPIM OME-Zarr</strong>.</p>
 <p><img alt="Channel settings button" src="../images/modify_channel_settings.png" /></p>
 <p>In the channel settings window, you can view the existing channel settings. To use a given channel setting, you need to provide its name in the corresponding parameter of the task. You can also add a new channel setting by clicking on the <strong>New</strong> button if no current channel settings match your needs.</p>
 <p><img alt="Channel settings window" src="../images/new_channel_settings.png" /></p>
@@ -567,11 +567,11 @@
 <p>Before running the workflow, you need to select the image in the OME-Zarr that should be processed. If you are running the conversion task, select the <strong>No OME-Zarr image</strong> option.</p>
 <p><img alt="Image list selection" src="../images/image_list.png" /></p>
 <hr />
-<h2 id="visualisation-in-napari">Visualisation in Napari<a class="headerlink" href="#visualisation-in-napari" title="Permanent link">&para;</a></h2>
-<p>You can visualise images directly in Napari. This launches a Napari instance with the <strong>Cropping Tool</strong> pre-installed.</p>
+<h2 id="visualisation-in-napari">Visualisation in napari<a class="headerlink" href="#visualisation-in-napari" title="Permanent link">&para;</a></h2>
+<p>You can visualise images directly in napari. This launches a napari instance with the <strong>Cropping Tool</strong> pre-installed.</p>
 <p>To launch the Cropping Tool:</p>
 <ol>
-<li>Open the <strong>Plugins</strong> tab in Napari</li>
+<li>Open the <strong>Plugins</strong> tab in napari</li>
 <li>Select <strong>Crop Tool</strong> from the menu</li>
 </ol>
 <p><img alt="Napari crop tool plugin menu" src="../images/napari_crop_tool.png" /></p>
