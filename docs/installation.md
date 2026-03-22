@@ -5,7 +5,7 @@
 | Requirement | Notes |
 |---|---|
 | **Internet connection** | To download Miniforge, conda packages, and source code |
-| **Git** | the installer will tell you if it's missing (see [Troubleshooting - Git Installation](#git-installation)) for more info on how to install Git |
+| **Git** | The installer will tell you if it's missing (see [Troubleshooting - Git Installation](#git-installation)) for more info on how to install Git |
 | **GitHub PAT** | Personal Access Token for the private repositories (see section [Personal Access Token](#github-personal-access-token)) |
 | **~5 GB free disk space** | For Miniforge, two conda environments, and source code |
 
@@ -27,7 +27,7 @@ To be able to download the private repositories that are part of the software de
 
 
 5. Click **"Generate token"** and copy it safely. ⚠ The token is shown only once. Keep it somewhere safe until the install is done.
-6. During installation, you will be asked to enter the token. You can copy paste it when prompted. It won't appear as typed in, that is normal, just press enter after copy-pasting it.
+6. During installation, you will be asked to enter the token. You can copy paste it when prompted. It won't appear as you type, that is normal, just press enter after copy-pasting it.
 
 ---
 
@@ -71,7 +71,7 @@ To be able to download the private repositories that are part of the software de
 ## Updating
 
 To update the application and all necessary packages to the latest version, re-run the installer. It will update
-(`git pull`) each package instead instead of re-cloning, and skip environment creation if
+(`git pull`) each package instead of re-cloning, and skip environment creation if
 the environments already exist.
 
 ### For technical users
@@ -92,10 +92,10 @@ Then re-run the installer.
 | Problem | Solution |
 |---|---|
 | `git: command not found` | Install Git from [git-scm.com](https://git-scm.com). See [Troubleshooting - Git Installation](#git-installation) for more infos |
-| `Authentication failed` cloning repos | Check your PAT has `contents` permissions for all private repositories and hasn't expired |
-| App shortcut doesn't open | Open a terminal (macOS or Linus) or the miniforge prompt (Windows), run `conda activate skin3d-app` then `skin3d-app`. For windows, if this still fails, type `python -m skinnervation3d_app` instead of `skin3d-app` |
+| `Authentication failed` when cloning repos | Check your PAT has `contents` permissions for all private repositories and hasn't expired |
+| App shortcut doesn't open | Open a terminal (macOS or Linux) or the miniforge prompt (Windows), run `conda activate skin3d-app` then `skin3d-app`. For windows, if this still fails, type `python -m skinnervation3d_app` instead of `skin3d-app` |
 | Windows: PowerShell execution policy error | Run `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` in PowerShell, then re-run `install.bat` |
-| Conda env creation fails | Delete the partial env with `conda env remove -n skin3d-app` in a terminal (macOS or Linus) or the miniforge prompt (Windows) and re-run the installer |
+| Conda env creation fails | Delete the partial env with `conda env remove -n skin3d-app` in a terminal (macOS or Linux) or the miniforge prompt (Windows) and re-run the installer |
 
 ---
 

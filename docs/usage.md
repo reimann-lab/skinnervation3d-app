@@ -23,7 +23,7 @@ A typical workflow is composed of two separate parts:
 This part is about preparing the raw image so it can be analysed. The steps are usually performed in the following order:
 
 1. **Mesospim to OmeZarr** or **Prepare mesoSPIM OME-Zarr**
-2. **Flatfield Correction**
+2. **Flat-field Correction**
 3. **Full Sample Cropping** (Crop Regions of Interest)
     - This requires defining a crop region **before** running the task using the napari crop plugin
 4. **Illumination Correction**
@@ -31,7 +31,7 @@ This part is about preparing the raw image so it can be analysed. The steps are 
 
 Additionally, you can also use **Modify OME-Zarr Structure** to modify the structure of an existing OME-Zarr, such as the size of the multi-resolution pyramid or the channel names/colors. 
 
-Finally, once you are done analysing an image, you can archive it by using **Archive or Dearchive OME-Zarr**. This will compress 2-3x the images in the OME-Zarr and output a unique TAR file containing the archived OME-Zarr.
+Finally, once you are done analysing an image, you can archive it by using **Archive or Dearchive OME-Zarr**. This will compress the images by 2-3x in the OME-Zarr and output a unique TAR file containing the archived OME-Zarr.
 
 
 ### Analysis
@@ -66,7 +66,7 @@ For more details on important parameters, click the **More info...** button. Thi
 
 ## Channel settings
 
-The channel settings are used to define the channel names and colors in the OME-Zarr. There are already some defautl settings saved in the application. You can view the existing settings by clicking on the **Add/mdofiy channel settings** button when you are using the task **MesoSPIM to OmeZarr** or **Prepare mesoSPIM OME-Zarr**.
+The channel settings are used to define the channel names and colors in the OME-Zarr. There are already some default settings saved in the application. You can view the existing settings by clicking on the **Add/modify channel settings** button when you are using the task **mesoSPIM to OmeZarr** or **Prepare mesoSPIM OME-Zarr**.
 
 ![Channel settings button](images/modify_channel_settings.png)
 
@@ -90,13 +90,13 @@ Before running the workflow, you need to select the image in the OME-Zarr that s
 
 ---
 
-## Visualisation in Napari
+## Visualisation in napari
 
-You can visualise images directly in Napari. This launches a Napari instance with the **Cropping Tool** pre-installed.
+You can visualise images directly in napari. This launches a napari instance with the **Cropping Tool** pre-installed.
 
 To launch the Cropping Tool:
 
-1. Open the **Plugins** tab in Napari
+1. Open the **Plugins** tab in napari
 2. Select **Crop Tool** from the menu
 
 ![Napari crop tool plugin menu](images/napari_crop_tool.png)

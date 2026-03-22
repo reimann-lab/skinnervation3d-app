@@ -49,7 +49,7 @@ description = "SkInnervation3D User Interface"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 authors = [
-  { name = "Giliane Rochat", email = "giliane.rochat@usz.ch" }]
+  { name = "Giliane Rochat", email = "girochat@proton.me" }]
 dependencies = [
   "pydantic>=2",
   "PySide6>=6.6",
