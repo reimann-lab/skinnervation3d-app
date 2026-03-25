@@ -239,7 +239,8 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
         step(f"Creating env '{env_name}' from conda-lock.yml…")
         _ensure_conda_lock(conda_exe)
         cl = _conda_lock_exe(conda_exe, base)
-        run([cl, "install", "-n", env_name, str(lock_file)])
+        env_path = Path(base, "envs", env_name)
+        run([cl, "install", "-p", env_path, str(lock_file)])
 
     elif env_file.exists():
         step(f"Creating env '{env_name}' from environment.yml…")
@@ -357,12 +358,15 @@ def _write_file(path: Path, content: str, executable: bool = False):
         path.chmod(0o755)
 
 
-def _windows_lnk(lnk_path: Path, target: Path, description: str = ""):
+def _windows_lnk(lnk_path: Path, target: Path, description: str = "",
+                 icon: Path = None):
     """Create a real .lnk shortcut on Windows via PowerShell."""
+    icon_line = f'$s.IconLocation = "{icon}";' if icon and icon.exists() else ""
     ps = (
         f'$s = (New-Object -ComObject WScript.Shell).CreateShortcut("{lnk_path}");\n'
         f'$s.TargetPath = "{target}";\n'
         f'$s.Description = "{description}";\n'
+        f'{icon_line}\n'
         f'$s.Save()'
     )
     run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps])
@@ -370,38 +374,129 @@ def _windows_lnk(lnk_path: Path, target: Path, description: str = ""):
 
 # ── Windows ───────────────────────────────────────────────────────────────────
 
-def _make_windows_launcher(base: Path, env: str, command: str) -> Path:
-    """Write a launch.bat inside the conda env and return its path."""
-    activate = base / "Scripts" / "activate.bat"
-    bat = _env_dir(base, env) / "launch.bat"
+def _make_windows_app_launcher(base: Path, env: str, command: str) -> Path:
+    """Write a launch.bat inside the conda env and return its path.
+    Calls binaries by their full path — no activation needed, avoids PATH issues.
+    """
+    env_dir = _env_dir(base, env)
+    scripts = env_dir / "Scripts"
+    exe = scripts / f"{command}.exe"
+    if not exe.exists():
+        python = env_dir / "python.exe"
+        cmd_line = f'"{python}" -m {command}'
+    else:
+        cmd_line = f'start "" /min "{exe}"'
+ 
+    bat = env_dir / "launch.bat"
     _write_file(bat, (
         "@echo off\n"
-        f'call "{activate}" {env}\n'
-        f"{command}\n"
+        "set OMP_NUM_THREADS=1\n"
+        "set MKL_NUM_THREADS=1\n"
+        "set NUMEXPR_NUM_THREADS=1\n"
+        "set OPENBLAS_NUM_THREADS=1\n"
+        "set NUMBA_NUM_THREADS=1\n"
+        f"{cmd_line}\n"
+    ))
+    ok(f"Launcher written → {bat}")
+    return bat
+
+def _make_windows_napari_launcher(base: Path, env: str, command: str) -> Path:
+    """Write a launch.bat inside the conda env and return its path.
+    Calls binaries by their full path — no activation needed, avoids PATH issues.
+    """
+    env_dir = _env_dir(base, env)
+    scripts = base / "Scripts"
+    cmd_line = f'start "" /min napari'
+ 
+    bat = env_dir / "launch_napari.bat"
+    _write_file(bat, (
+        "@echo off\n"
+        f"call {scripts / "activate.bat"} {env}\n"
+        f"{cmd_line}\n"
+        "exit\n"
     ))
     ok(f"Launcher written → {bat}")
     return bat
 
 
-def _shortcut_windows(desktop: Path, base: Path):
+def _shortcut_windows(desktop: Path, base: Path, repos: Path):
     # skin3d-app
-    app_exe = _env_dir(base, APP_ENV) / "Scripts" / "skin3d-app.exe"
-    app_bat = _make_windows_launcher(base, APP_ENV,
-                  f'if exist "{app_exe}" (start "" "{app_exe}") '
-                  f'else (python -m skinnervation3d_app)')
-    lnk = desktop / "SkInnervation3D.lnk"
-    _windows_lnk(lnk, app_bat, "Launch SkInnervation3D")
+    app_bat = _make_windows_app_launcher(base, APP_ENV, "skin3d-app")
+    app_icon = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d.ico"
+    lnk = desktop / "Skinnervation3D App.lnk"
+    _windows_lnk(lnk, app_bat, "Launch SkInnervation3D App", icon=app_icon)
     ok(f"Desktop shortcut → {lnk}")
-
+ 
     # napari-crop
-    napari_bat = _make_windows_launcher(base, NAPARI_ENV, "napari")
-    lnk2 = desktop / "NapariCrop.lnk"
-    _windows_lnk(lnk2, napari_bat, "Launch Napari (crop tool)")
+    napari_bat = _make_windows_napari_launcher(base, NAPARI_ENV, "napari")
+    napari_icon = _env_dir(base, NAPARI_ENV) / "Lib" / "site-packages" / "napari" / "resources" / "icon.ico"
+    lnk2 = desktop / "Napari.lnk"
+    _windows_lnk(lnk2, napari_bat, "Launch Napari (crop tool)", icon=napari_icon)
     ok(f"Desktop shortcut → {lnk2}")
 
 
 # ── macOS ─────────────────────────────────────────────────────────────────────
-
+ 
+def _ico_to_png_mac(ico: Path, out: Path) -> bool:
+    """Convert .ico to .png using sips (built into macOS). Returns True on success."""
+    r = run(["sips", "-s", "format", "png", str(ico), "--out", str(out)],
+            check=False, capture=True)
+    return r.returncode == 0 and out.exists()
+ 
+ 
+def _make_mac_app_bundle(apps: Path, name: str, launcher: Path,
+                         icon_ico: Path = None) -> Path:
+    """
+    Create a minimal .app bundle in /Applications.
+    Structure:
+      <name>.app/Contents/MacOS/<name>   ← executable that calls launcher
+      <name>.app/Contents/Resources/app.png  ← icon (optional)
+      <name>.app/Contents/Info.plist
+    """
+    bundle = apps / f"{name}.app"
+    macos_dir     = bundle / "Contents" / "MacOS"
+    resources_dir = bundle / "Contents" / "Resources"
+    macos_dir.mkdir(parents=True, exist_ok=True)
+    resources_dir.mkdir(parents=True, exist_ok=True)
+ 
+    # Executable
+    exe = macos_dir / name
+    _write_file(exe, (
+        "#!/usr/bin/env bash\n"
+        f'exec "{launcher}"\n'
+    ), executable=True)
+ 
+    # Icon
+    icon_name = ""
+    if icon_ico and icon_ico.exists():
+        png = resources_dir / "app.png"
+        if _ico_to_png_mac(icon_ico, png):
+            icon_name = "app.png"
+            ok(f"Icon converted → {png}")
+        else:
+            warn("Icon conversion failed (sips), app will use default icon")
+ 
+    # Info.plist
+    icon_line = f"<key>CFBundleIconFile</key><string>{icon_name}</string>" if icon_name else ""
+    plist = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+        '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+        '<plist version="1.0"><dict>\n'
+        f'  <key>CFBundleName</key><string>{name}</string>\n'
+        f'  <key>CFBundleIdentifier</key><string>org.skinnervation.{name.lower()}</string>\n'
+        '  <key>CFBundleVersion</key><string>1.0</string>\n'
+        '  <key>CFBundlePackageType</key><string>APPL</string>\n'
+        f'  <key>CFBundleExecutable</key><string>{name}</string>\n'
+        f'  {icon_line}\n'
+        '</dict></plist>\n'
+    )
+    (bundle / "Contents" / "Info.plist").write_text(plist, encoding="utf-8")
+ 
+    ok(f"App bundle → {bundle}")
+    return bundle
+ 
+ 
 def _make_mac_launcher(base: Path, env: str, command: str) -> Path:
     """Write an executable .command script inside <env>/bin/ and return its path."""
     conda_sh = base / "etc" / "profile.d" / "conda.sh"
@@ -414,33 +509,41 @@ def _make_mac_launcher(base: Path, env: str, command: str) -> Path:
     ), executable=True)
     ok(f"Launcher written → {script}")
     return script
-
-
-def _shortcut_mac(desktop: Path, base: Path):
+ 
+ 
+def _shortcut_mac(_, base: Path, repos: Path):
+    apps = Path("/Applications")
+ 
     # skin3d-app
     app_launcher = _make_mac_launcher(base, APP_ENV, "skin3d-app")
-    apps = Path("/Applications")
-    wrapper = apps / "SkInnervation3D.command"
-    _write_file(wrapper, (
-        "#!/usr/bin/env bash\n"
-        f'exec "{app_launcher}"\n'
-    ), executable=True)
-    ok(f"App shortcut → {wrapper}")
-
+    app_icon = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d.ico"
+    _make_mac_app_bundle(apps, "Skinnervation3DApp", app_launcher, icon_ico=app_icon)
+ 
     # napari-crop
     napari_launcher = _make_mac_launcher(base, NAPARI_ENV, "napari")
-    wrapper2 = apps / "NapariCrop.command"
-    _write_file(wrapper2, (
-        "#!/usr/bin/env bash\n"
-        f'exec "{napari_launcher}"\n'
-    ), executable=True)
-    ok(f"App shortcut → {wrapper2}")
-
+    napari_icon = _env_dir(base, NAPARI_ENV) / "lib" / "python3.11" / "site-packages" / "napari" / "resources" / "icon.ico"
+    _make_mac_app_bundle(apps, "Napari", napari_launcher, icon_ico=napari_icon)
+ 
     print("   Tip: right-click → Open the first time to bypass Gatekeeper.")
-
-
+ 
+ 
 # ── Linux ─────────────────────────────────────────────────────────────────────
-
+ 
+def _ico_to_png_linux(ico: Path, out: Path) -> bool:
+    """Convert .ico to .png using Pillow if available. Returns True on success."""
+    try:
+        from PIL import Image
+        img = Image.open(ico)
+        # Pick the largest size available in the .ico
+        sizes = getattr(img, "ico", None)
+        if sizes:
+            img = img.ico.getimage(max(img.ico.sizes()))
+        img.save(out, format="PNG")
+        return out.exists()
+    except Exception:
+        return False
+ 
+ 
 def _make_linux_launcher(base: Path, env: str, command: str) -> Path:
     """Write an executable shell script inside <env>/bin/ and return its path."""
     conda_sh = base / "etc" / "profile.d" / "conda.sh"
@@ -453,53 +556,72 @@ def _make_linux_launcher(base: Path, env: str, command: str) -> Path:
     ), executable=True)
     ok(f"Launcher written → {script}")
     return script
-
-
-def _shortcut_linux(desktop: Path, base: Path):
-    # ~/.local/share/applications — user-level app menu, no sudo needed
+ 
+ 
+def _resolve_linux_icon(ico: Path, env_dir: Path, name: str) -> str:
+    """
+    Try to get a usable icon path for a Linux .desktop file.
+    Prefers PNG (converted from .ico), falls back to .ico directly.
+    """
+    if not ico.exists():
+        return ""
+    png = env_dir / f"{name}.png"
+    if _ico_to_png_linux(ico, png):
+        ok(f"Icon converted → {png}")
+        return str(png)
+    warn("Pillow not available — using .ico directly (may not show on all DEs)")
+    return str(ico)
+ 
+ 
+def _shortcut_linux(_, base: Path, repos: Path):
     apps = Path.home() / ".local" / "share" / "applications"
     apps.mkdir(parents=True, exist_ok=True)
-
+ 
     # skin3d-app
     app_launcher = _make_linux_launcher(base, APP_ENV, "skin3d-app")
-    df = apps / "SkInnervation3D.desktop"
+    app_ico = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d.ico"
+    app_icon = _resolve_linux_icon(app_ico, _env_dir(base, APP_ENV), "skin3d")
+    df = apps / "Skinnervation3DApp.desktop"
     _write_file(df, (
         "[Desktop Entry]\n"
-        f"Name={APP_NAME}\n"
+        "Name=Skinnervation3DApp\n"
         "Type=Application\n"
         "Terminal=false\n"
         f'Exec=bash -c "{app_launcher}"\n'
-        "Icon=\n"
+        f"Icon={app_icon}\n"
         "Categories=Science;\n"
     ), executable=True)
     ok(f"App menu entry → {df}")
-
+ 
     # napari-crop
     napari_launcher = _make_linux_launcher(base, NAPARI_ENV, "napari")
-    df2 = apps / "NapariCrop.desktop"
+    napari_ico = _env_dir(base, NAPARI_ENV) / "lib" / "python3.11" / "site-packages" / "napari" / "resources" / "icon.ico"
+    napari_icon = _resolve_linux_icon(napari_ico, _env_dir(base, NAPARI_ENV), "napari")
+    df2 = apps / "Napari.desktop"
     _write_file(df2, (
         "[Desktop Entry]\n"
-        "Name=NapariCrop\n"
+        "Name=Napari\n"
         "Type=Application\n"
         "Terminal=false\n"
         f'Exec=bash -c "{napari_launcher}"\n'
-        "Icon=\n"
+        f"Icon={napari_icon}\n"
         "Categories=Science;\n"
     ), executable=True)
     ok(f"App menu entry → {df2}")
+ 
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def create_shortcuts(base: Path):
+def create_shortcuts(base: Path, repos: Path):
     if SYSTEM == "Windows":
         desktop = Path.home() / "Desktop"
         desktop.mkdir(exist_ok=True)
-        _shortcut_windows(desktop, base)
+        _shortcut_windows(desktop, base, repos)
     elif SYSTEM == "Darwin":
-        _shortcut_mac(None, base)
+        _shortcut_mac(None, base, repos)
     else:
-        _shortcut_linux(None, base)
+        _shortcut_linux(None, base, repos)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -600,7 +722,7 @@ def main():
         data_dir   = data_dir,
     )
 
-    create_shortcuts(base)
+    create_shortcuts(base, repos)
 
     # ── Done ───────────────────────────────────────────────────────────────────
     header("Installation complete! 🎉")
