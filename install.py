@@ -435,6 +435,18 @@ def _shortcut_windows(desktop: Path, base: Path, repos: Path):
     ok(f"Desktop shortcut → {lnk2}")
 
 
+# ── macOS/Linux ─────────────────────────────────────────────────────────────────────
+
+def _find_site_packages(env_dir: Path) -> Path | None:
+    """Find site-packages dir without hardcoding the Python version."""
+    lib = env_dir / "lib"
+    if lib.exists():
+        for p in sorted(lib.iterdir()):
+            sp = p / "site-packages"
+            if sp.exists():
+                return sp
+    return None
+
 # ── macOS ─────────────────────────────────────────────────────────────────────
  
 def _ico_to_png_mac(ico: Path, out: Path) -> bool:
@@ -521,7 +533,8 @@ def _shortcut_mac(_, base: Path, repos: Path):
  
     # napari-crop
     napari_launcher = _make_mac_launcher(base, NAPARI_ENV, "napari")
-    napari_icon = _env_dir(base, NAPARI_ENV) / "lib" / "python3.11" / "site-packages" / "napari" / "resources" / "icon.ico"
+    sp = _find_site_packages(_env_dir(base, NAPARI_ENV))
+    napari_icon = sp / "napari" / "resources" / "icon.ico" if sp else None
     _make_mac_app_bundle(apps, "Napari", napari_launcher, icon_ico=napari_icon)
  
     print("   Tip: right-click → Open the first time to bypass Gatekeeper.")
@@ -543,68 +556,52 @@ def _ico_to_png_linux(ico: Path, out: Path) -> bool:
     except Exception:
         return False
  
- 
-def _make_linux_launcher(base: Path, env: str, command: str) -> Path:
-    """Write an executable shell script inside <env>/bin/ and return its path."""
-    conda_sh = base / "etc" / "profile.d" / "conda.sh"
-    script = _env_dir(base, env) / "bin" / "launch.sh"
-    _write_file(script, (
-        "#!/usr/bin/env bash\n"
-        f'source "{conda_sh}"\n'
-        f"conda activate {env}\n"
-        f"{command}\n"
-    ), executable=True)
-    ok(f"Launcher written → {script}")
-    return script
- 
- 
-def _resolve_linux_icon(ico: Path, env_dir: Path, name: str) -> str:
-    """
-    Try to get a usable icon path for a Linux .desktop file.
-    Prefers PNG (converted from .ico), falls back to .ico directly.
-    """
-    if not ico.exists():
-        return ""
-    png = env_dir / f"{name}.png"
-    if _ico_to_png_linux(ico, png):
-        ok(f"Icon converted → {png}")
-        return str(png)
-    warn("Pillow not available — using .ico directly (may not show on all DEs)")
-    return str(ico)
- 
- 
+
 def _shortcut_linux(_, base: Path, repos: Path):
     apps = Path.home() / ".local" / "share" / "applications"
     apps.mkdir(parents=True, exist_ok=True)
  
-    # skin3d-app
-    app_launcher = _make_linux_launcher(base, APP_ENV, "skin3d-app")
-    app_ico = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d.ico"
-    app_icon = _resolve_linux_icon(app_ico, _env_dir(base, APP_ENV), "skin3d")
+    # skin3d-app — call exe directly by full path, no icon
+    app_exe = _env_dir(base, APP_ENV) / "bin" / "skin3d-app"
     df = apps / "Skinnervation3DApp.desktop"
     _write_file(df, (
         "[Desktop Entry]\n"
         "Name=Skinnervation3DApp\n"
         "Type=Application\n"
         "Terminal=false\n"
-        f'Exec=bash -c "{app_launcher}"\n'
-        f"Icon={app_icon}\n"
+        f'Exec="{app_exe}"\n'
+        "Icon=\n"
         "Categories=Science;\n"
     ), executable=True)
     ok(f"App menu entry → {df}")
  
-    # napari-crop
-    napari_launcher = _make_linux_launcher(base, NAPARI_ENV, "napari")
-    napari_ico = _env_dir(base, NAPARI_ENV) / "lib" / "python3.11" / "site-packages" / "napari" / "resources" / "icon.ico"
-    napari_icon = _resolve_linux_icon(napari_ico, _env_dir(base, NAPARI_ENV), "napari")
+    # napari — call exe directly by full path
+    napari_exe = _env_dir(base, NAPARI_ENV) / "bin" / "napari"
+ 
+    # Copy napari icon to ~/.local/share/icons/ and reference by name
+    icons_dir = Path.home() / ".local" / "share" / "icons"
+    icons_dir.mkdir(parents=True, exist_ok=True)
+    napari_icon_name = ""
+    sp = _find_site_packages(_env_dir(base, NAPARI_ENV))
+    if sp:
+        napari_ico = sp / "napari" / "resources" / "icon.ico"
+        png_dest = icons_dir / "napari.png"
+        if _ico_to_png_linux(napari_ico, png_dest):
+            ok(f"Napari icon installed → {png_dest}")
+            napari_icon_name = "napari"
+            run(["gtk-update-icon-cache", "-f", "-t", str(icons_dir)],
+                check=False, capture=True)
+        else:
+            warn("Icon conversion failed — napari will use default icon")
+ 
     df2 = apps / "Napari.desktop"
     _write_file(df2, (
         "[Desktop Entry]\n"
         "Name=Napari\n"
         "Type=Application\n"
         "Terminal=false\n"
-        f'Exec=bash -c "{napari_launcher}"\n'
-        f"Icon={napari_icon}\n"
+        f'Exec="{napari_exe}"\n'
+        f"Icon={napari_icon_name}\n"
         "Categories=Science;\n"
     ), executable=True)
     ok(f"App menu entry → {df2}")
@@ -731,10 +728,11 @@ def main():
         f"\n  config.py        : {config_path}"
         f"\n  Conda envs       : {APP_ENV}  |  {NAPARI_ENV}"
         f"\n"
-        f"\n  ▶  Double-click 'SkInnervation3D' on your Desktop to launch the app."
-        f"\n  ▶  Double-click 'NapariCrop' on your Desktop to launch Napari."
+        f"\n  ▶  Windows: double-click the shortcuts on your Desktop."
+        f"\n  ▶  macOS: open /Applications and double-click the app."
+        f"\n  ▶  Linux: find 'Skinnervation3DApp' and 'Napari' in your app launcher."
         f"\n"
-        f"\n  Manual launch (if shortcut fails):"
+        f"\n  Manual launch in Miniforge prompt/terminal (if shortcut fails):"
         f"\n      conda activate {APP_ENV}"
         f"\n      skin3d-app"
         f"\n"
