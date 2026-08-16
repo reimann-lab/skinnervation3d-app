@@ -5,7 +5,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
+
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")" && pwd)"
 INSTALLER="$SCRIPT_DIR/install.py"
 
 echo ""

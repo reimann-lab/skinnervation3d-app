@@ -5,10 +5,17 @@ Works on Windows, macOS, and Linux.
 Run via install.sh (Mac/Linux) or install.bat (Windows).
 """
 
+from __future__ import annotations
+
+import os
+import stat
+import json
+import time
 import sys
 import platform
 import subprocess
 import shutil
+import hashlib
 import urllib.request
 import tempfile
 import getpass
@@ -23,6 +30,8 @@ NAPARI_ENV = "napari-crop"
 SYSTEM = platform.system()   # 'Windows', 'Darwin', 'Linux'
 ARCH   = platform.machine()  # 'x86_64', 'arm64', 'AMD64'
 
+STAMP_NAME = ".skinnervation3d-env.json"
+
 # ── Repositories ───────────────────────────────────────────────────────────────
 
 PUBLIC_REPOS = {
@@ -33,6 +42,7 @@ PUBLIC_REPOS = {
 PRIVATE_REPOS = {
     "skinnervation3d-fractal-tasks":   "https://github.com/reimann-lab/skinnervation3d-fractal-tasks.git",
 }
+
 
 # ── Miniforge download URLs ────────────────────────────────────────────────────
 
@@ -72,13 +82,13 @@ def err(text: str):
 
 def ask(prompt: str, default: str = "") -> str:
     if default:
-        val = input(f"\n   {prompt}\n   [{default}]: ").strip()
-        return val if val else default
-    while True:
-        val = input(f"\n   {prompt}: ").strip()
+        val = input(f"\n   {prompt}\n   [current default: {default}]: ").strip()
         if val:
+            val = val.strip('"')
+            val = val.strip("'")
             return val
-        print("   (required — please enter a value)")
+        else:
+            return default
 
 def ask_secret(prompt: str) -> str:
     while True:
@@ -222,36 +232,146 @@ def _conda_lock_exe(conda_exe: Path, base: Path) -> Path:
 #  Environment creation
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _stamp_path(base: Path, env_name: str) -> Path:
+    return _env_dir(base, env_name) / STAMP_NAME
+ 
+ 
+def _read_stamp(base: Path, env_name: str) -> dict:
+    p = _stamp_path(base, env_name)
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _write_stamp(base: Path, env_name: str, spec: Path, digest: str, method: str):
+    p = _stamp_path(base, env_name)
+    payload = {
+        "env": env_name,
+        "spec_file": spec.name,
+        "spec_path": str(spec),
+        "spec_sha256": digest,
+        "method": method,                       # 'create' | 'sync'
+        "installed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "installer_version": 2,
+    }
+    try:
+        p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception as e:
+        warn(f"Could not write env stamp ({e}) — the next run will not be able "
+             f"to detect lock changes for '{env_name}'.")
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _env_spec(repo_dir: Path):
+    """Return (spec_path, kind) — kind is 'lock', 'yaml' or 'none'."""
+    lock_file = repo_dir / "conda-lock.yml"
+    if lock_file.exists():
+        return lock_file, "lock"
+    env_file = repo_dir / "environment.yml"
+    if env_file.exists():
+        return env_file, "yaml"
+    return None, "none"
+
+
+def _rmtree_force(path: Path):
+    """rmtree that also copes with read-only files (common on Windows)."""
+    def handler(func, p, _exc):
+        try:
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        except Exception:
+            pass
+    kwargs = {"onexc": handler} if sys.version_info >= (3, 12) else {"onerror": handler}
+    shutil.rmtree(path, **kwargs)
+
+
+def remove_env(conda_exe: Path, base: Path, env_name: str):
+    step(f"Removing env '{env_name}'…")
+    run([conda_exe, "env", "remove", "-n", env_name, "--yes"], check=False)
+ 
+    env_dir = _env_dir(base, env_name)
+    if env_dir.exists():
+        warn("conda left the env folder behind — deleting it directly…")
+        try:
+            _rmtree_force(env_dir)
+        except Exception as e:
+            warn(f"Direct deletion failed: {e}")
+ 
+    if env_dir.exists():
+        err(f"Could not remove '{env_dir}'.\n"
+            f"   On Windows this usually means a program from that env is still "
+            f"running (napari, a terminal with the env activated, an editor…).\n"
+            f"   Close them, then re-run the installer.")
+        sys.exit(1)
+    ok(f"Env '{env_name}' removed")
+
+
+def _build_env(conda_exe: Path, env_name: str, base: Path,
+               spec: Path, kind: str, repo_dir: Path):
+    if kind == "lock":
+        step(f"Creating env '{env_name}' from {spec.name}…")
+        _ensure_conda_lock(conda_exe)
+        cl = _conda_lock_exe(conda_exe, base)
+        env_path = _env_dir(base, env_name)
+        run([cl, "install", "-p", env_path, str(spec)])
+ 
+    elif kind == "yaml":
+        step(f"Creating env '{env_name}' from {spec.name}…")
+        run([conda_exe, "env", "create", "-n", env_name, "-f", str(spec)])
+ 
+    else:
+        err(f"No conda-lock.yml or environment.yml found in {repo_dir.name}. "
+             f"Creating a minimal Python 3.11 env.")
+        sys.exit(1)
+
+
 def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
     """
     Create a conda env from conda-lock.yml (preferred) or environment.yml.
-    Skips silently if the env already exists.
+    
+    If the env already exists, the SHA-256 of the spec file is compared against
+    the one recorded in <env>/.skinnervation3d-env.json when the env was built:
+      • unchanged            → skip (fast path, unchanged behaviour)
+      • changed / no stamp   → rebuild from scratch, or sync in place,
+                               depending on ENV_UPDATE_POLICY / CLI flags
+
     """
+    spec, kind = _env_spec(repo_dir)
+    digest = _sha256_file(spec) if spec else None
+
     if env_exists(base, env_name):
-        ok(f"Env '{env_name}' already exists — skipping "
-           f"(delete it with  conda env remove -n {env_name}  to reinstall)")
-        return
-
-    lock_file = repo_dir / "conda-lock.yml"
-    env_file  = repo_dir / "environment.yml"
-
-    if lock_file.exists():
-        step(f"Creating env '{env_name}' from conda-lock.yml…")
-        _ensure_conda_lock(conda_exe)
-        cl = _conda_lock_exe(conda_exe, base)
-        env_path = Path(base, "envs", env_name)
-        run([cl, "install", "-p", env_path, str(lock_file)])
-
-    elif env_file.exists():
-        step(f"Creating env '{env_name}' from environment.yml…")
-        run([conda_exe, "env", "create", "-n", env_name, "-f", str(env_file)])
-
-    else:
-        warn(f"No conda-lock.yml or environment.yml found in {repo_dir.name}. "
-             f"Creating a minimal Python 3.11 env.")
-        run([conda_exe, "create", "-n", env_name,
-             "python=3.11", "-c", "conda-forge", "-y"])
-
+        if spec is None:
+            ok(f"Env '{env_name}' already exists and {repo_dir.name} has no "
+               f"lock/environment file — skipping")
+            return
+ 
+        else:
+            recorded = _read_stamp(base, env_name).get("spec_sha256")
+ 
+            if recorded == digest:
+                ok(f"Env '{env_name}' is up to date with {spec.name} — skipping")
+                return
+            else:
+                warn(f"Env '{env_name}' exists but has a different (or none) "
+                f"installer stamp than {repo_dir.name}. Rebuilding env...")
+                remove_env(conda_exe, base, env_name)
+ 
+    _build_env(conda_exe, env_name, base, spec, kind, repo_dir)
+ 
+    if not env_exists(base, env_name):
+        err(f"Env '{env_name}' was not created at {_env_dir(base, env_name)}.")
+        sys.exit(1)
+ 
+    if spec:
+        _write_stamp(base, env_name, spec, digest, "create")
     ok(f"Env '{env_name}' ready")
 
 
@@ -411,7 +531,7 @@ def _make_windows_napari_launcher(base: Path, env: str, command: str) -> Path:
     bat = env_dir / "launch_napari.bat"
     _write_file(bat, (
         "@echo off\n"
-        f"call {scripts / "activate.bat"} {env}\n"
+        f"call {scripts / 'activate.bat'} {env}\n"
         f"{cmd_line}\n"
         "exit\n"
     ))
@@ -422,8 +542,8 @@ def _make_windows_napari_launcher(base: Path, env: str, command: str) -> Path:
 def _shortcut_windows(desktop: Path, base: Path, repos: Path):
     # skin3d-app
     app_bat = _make_windows_app_launcher(base, APP_ENV, "skin3d-app")
-    app_icon = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d.ico"
-    lnk = desktop / "Skinnervation3D App.lnk"
+    app_icon = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d_logo.ico"
+    lnk = desktop / "Skinnervation3D.lnk"
     _windows_lnk(lnk, app_bat, "Launch SkInnervation3D App", icon=app_icon)
     ok(f"Desktop shortcut → {lnk}")
  
@@ -524,11 +644,12 @@ def _make_mac_launcher(base: Path, env: str, command: str) -> Path:
  
  
 def _shortcut_mac(_, base: Path, repos: Path):
-    apps = Path("/Applications")
+    apps = Path.home() / "Applications"
+    apps.mkdir(parents=True, exist_ok=True)
  
     # skin3d-app
     app_launcher = _make_mac_launcher(base, APP_ENV, "skin3d-app")
-    app_icon = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d.ico"
+    app_icon = repos / "skinnervation3d-app" / "src" / "skinnervation3d_app" / "resources" / "skin3d_logo.ico"
     _make_mac_app_bundle(apps, "Skinnervation3DApp", app_launcher, icon_ico=app_icon)
  
     # napari-crop
@@ -660,15 +781,25 @@ def main():
 
     default_install = Path.home() / "SkInnervation3D"
     install_dir = Path(ask(
-        "Installation folder (source code will be cloned here)",
-        str(default_install)
-    ))
-    install_dir.mkdir(parents=True, exist_ok=True)
+        "Where should the software be installed (source code will be cloned here)? \nNote: "
+        "it is important to give a full filesystem path (e.g. C:/Users/JaneDoe). ",
+        str(default_install),
+    ), "Skinnervation3D")
+
+    try:
+        install_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        err(f"Could not create installation folder! Please enter a valid path.")
+        raise e
 
     data_dir = Path(ask(
         "Data directory (where your imaging data lives)",
-        str(Path.home() / "data")
+        str(Path.home() / "Documents")
     ))
+
+    if not data_dir.exists():
+        err(f"Data directory does not exist! Please enter a valid path.")
+        raise FileNotFoundError
 
     print(
         "\n  A GitHub Personal Access Token (PAT) is required to download\n"
@@ -729,7 +860,7 @@ def main():
         f"\n  Conda envs       : {APP_ENV}  |  {NAPARI_ENV}"
         f"\n"
         f"\n  ▶  Windows: double-click the shortcuts on your Desktop."
-        f"\n  ▶  macOS: open /Applications and double-click the app."
+        f"\n  ▶  macOS: open ~/Applications and double-click the app."
         f"\n  ▶  Linux: find 'Skinnervation3DApp' and 'Napari' in your app launcher."
         f"\n"
         f"\n  Manual launch in Miniforge prompt/terminal (if shortcut fails):"
