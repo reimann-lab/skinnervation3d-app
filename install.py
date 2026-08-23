@@ -273,12 +273,13 @@ def _sha256_file(path: Path) -> str:
 def _env_spec(repo_dir: Path):
     """Return (spec_path, kind) — kind is 'lock', 'yaml' or 'none'."""
     lock_file = repo_dir / "conda-lock.yml"
+    specs = {}
     if lock_file.exists():
-        return lock_file, "lock"
+        specs["lock"] = lock_file
     env_file = repo_dir / "environment.yml"
     if env_file.exists():
-        return env_file, "yaml"
-    return None, "none"
+        specs["yaml"] = env_file
+    return specs
 
 
 def _rmtree_force(path: Path):
@@ -315,22 +316,30 @@ def remove_env(conda_exe: Path, base: Path, env_name: str):
 
 
 def _build_env(conda_exe: Path, env_name: str, base: Path,
-               spec: Path, kind: str, repo_dir: Path):
-    if kind == "lock":
-        step(f"Creating env '{env_name}' from {spec.name}…")
-        _ensure_conda_lock(conda_exe)
-        cl = _conda_lock_exe(conda_exe, base)
-        env_path = _env_dir(base, env_name)
-        run([cl, "install", "-p", env_path, str(spec)])
+               specs: dict, repo_dir: Path) -> Path:
+    if "lock" in specs.keys():
+        try:
+            step(f"Creating env '{env_name}' from {specs['lock'].name}…")
+            _ensure_conda_lock(conda_exe)
+            cl = _conda_lock_exe(conda_exe, base)
+            env_path = _env_dir(base, env_name)
+            run([cl, "install", "-p", env_path, str(specs["lock"])])
+            return specs["lock"]
+        except Exception as e:
+            warn(f"Could not create env '{env_name}' from "
+                 f"{specs['lock'].name}:\n   {e}")
+            if env_path.exists():
+                warn("Removing the partially created env…")
+                remove_env(conda_exe, base, env_name)
+    
+    if "yaml" in specs.keys():
+        step(f"Creating env '{env_name}' from {specs['yaml'].name}…")
+        run([conda_exe, "env", "create", "-n", env_name, "-f", str(specs["yaml"])])
+        return specs["yaml"]
  
-    elif kind == "yaml":
-        step(f"Creating env '{env_name}' from {spec.name}…")
-        run([conda_exe, "env", "create", "-n", env_name, "-f", str(spec)])
- 
-    else:
-        err(f"No conda-lock.yml or environment.yml found in {repo_dir.name}. "
-             f"Creating a minimal Python 3.11 env.")
-        sys.exit(1)
+    err(f"Installation using either conda-lock.yml or environment.yml failed. It might be "
+        "due to the absence of the files or an error with conda manager.")
+    sys.exit(1)
 
 
 def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
@@ -344,11 +353,12 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
                                depending on ENV_UPDATE_POLICY / CLI flags
 
     """
-    spec, kind = _env_spec(repo_dir)
-    digest = _sha256_file(spec) if spec else None
+    specs = _env_spec(repo_dir)
+    digest_yaml = _sha256_file(specs["yaml"]) if "yaml" in specs else None
+    digest_lock = _sha256_file(specs["lock"]) if "lock" in specs else None
 
     if env_exists(base, env_name):
-        if spec is None:
+        if "yaml" not in specs.keys() and "lock" not in specs.keys():
             ok(f"Env '{env_name}' already exists and {repo_dir.name} has no "
                f"lock/environment file — skipping")
             return
@@ -356,22 +366,22 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
         else:
             recorded = _read_stamp(base, env_name).get("spec_sha256")
  
-            if recorded == digest:
-                ok(f"Env '{env_name}' is up to date with {spec.name} — skipping")
+            if recorded and (recorded == digest_yaml or recorded == digest_lock):
+                ok(f"Env '{env_name}' is up to date with environment files — skipping")
                 return
             else:
                 warn(f"Env '{env_name}' exists but has a different (or none) "
                 f"installer stamp than {repo_dir.name}. Rebuilding env...")
                 remove_env(conda_exe, base, env_name)
  
-    _build_env(conda_exe, env_name, base, spec, kind, repo_dir)
+    used = _build_env(conda_exe, env_name, base, specs, repo_dir)
  
     if not env_exists(base, env_name):
         err(f"Env '{env_name}' was not created at {_env_dir(base, env_name)}.")
         sys.exit(1)
  
-    if spec:
-        _write_stamp(base, env_name, spec, digest, "create")
+    if used:
+        _write_stamp(base, env_name, used, _sha256_file(used), "create")
     ok(f"Env '{env_name}' ready")
 
 
@@ -784,7 +794,7 @@ def main():
         "Where should the software be installed (source code will be cloned here)? \nNote: "
         "it is important to give a full filesystem path (e.g. C:/Users/JaneDoe). ",
         str(default_install),
-    ), "Skinnervation3D")
+    ))
 
     try:
         install_dir.mkdir(parents=True, exist_ok=True)
