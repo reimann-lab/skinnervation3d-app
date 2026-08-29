@@ -32,6 +32,8 @@ ARCH   = platform.machine()  # 'x86_64', 'arm64', 'AMD64'
 
 STAMP_NAME = ".skinnervation3d-env.json"
 
+CONDA_LOCK_ENV = "conda-lock-env"
+
 # ── Repositories ───────────────────────────────────────────────────────────────
 
 PUBLIC_REPOS = {
@@ -211,21 +213,70 @@ def env_bin(base: Path, env: str, binary: str) -> Path:
 #  conda-lock support
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _ensure_conda_lock(conda_exe: Path):
-    r = run([conda_exe, "run", "-n", "base", "conda-lock", "--version"],
-            check=False, capture=True)
-    if r.returncode != 0:
-        step("Installing conda-lock into base env (one-time setup)…")
-        run([conda_exe, "install", "-n", "base", "conda-lock",
-             "-c", "conda-forge", "-y"])
+
+_SUBDIR_CACHE = None
+ 
+ 
+def _conda_subdir(conda_exe: Path) -> str:
+    """Ask conda which platform subdir it targets (win-64, osx-arm64, …)."""
+    global _SUBDIR_CACHE
+    if _SUBDIR_CACHE:
+        return _SUBDIR_CACHE
+ 
+    r = run([conda_exe, "info", "--json"], check=False, capture=True)
+    if r.returncode == 0:
+        try:
+            info = json.loads(r.stdout)
+            _SUBDIR_CACHE = info.get("subdir") or info.get("platform")
+        except Exception:
+            _SUBDIR_CACHE = None
+ 
+    if not _SUBDIR_CACHE:
+        warn("Could not read the platform from conda — guessing it instead.")
+        if SYSTEM == "Windows":
+            _SUBDIR_CACHE = "win-64"
+        elif SYSTEM == "Darwin":
+            _SUBDIR_CACHE = "osx-arm64" if ARCH == "arm64" else "osx-64"
+        else:
+            _SUBDIR_CACHE = ("linux-aarch64" if ARCH in ("aarch64", "arm64")
+                             else "linux-64")
+    return _SUBDIR_CACHE
 
 
-def _conda_lock_exe(conda_exe: Path, base: Path) -> Path:
+
+def _conda_lock_exe(base: Path) -> Path:
+    env = base / "envs" / CONDA_LOCK_ENV
     if SYSTEM == "Windows":
-        p = base / "Scripts" / "conda-lock.exe"
-    else:
-        p = base / "bin" / "conda-lock"
-    return p if p.exists() else Path("conda-lock")
+        return env / "Scripts" / "conda-lock.exe"
+    return env / "bin" / "conda-lock"
+ 
+ 
+def _ensure_conda_lock(conda_exe: Path, base: Path) -> Path:
+    """
+    Make sure a *working* conda-lock exists in its own env, and return its path.
+    """
+    exe = _conda_lock_exe(base)
+ 
+    if exe.exists():
+        r = run([exe, "--version"], check=False, capture=True)
+        if r.returncode == 0:
+            ok(f"conda-lock found → {r.stdout.strip()}")
+            return exe
+        warn("conda-lock is installed but does not run — rebuilding its env…")
+        remove_env(conda_exe, base, CONDA_LOCK_ENV)
+ 
+    step(f"Installing conda-lock into env '{CONDA_LOCK_ENV}' (one-time setup)…")
+    run([conda_exe, "create", "-n", CONDA_LOCK_ENV, "conda-lock",
+         "-c", "conda-forge", "-y"])
+ 
+    r = run([exe, "--version"], check=False, capture=True)
+    if not exe.exists() or r.returncode != 0:
+        err(f"conda-lock was installed at {exe} but cannot run.")
+        sys.exit(1)
+ 
+    ok(f"conda-lock ready → {r.stdout.strip()}")
+    return exe
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -270,15 +321,22 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _env_spec(repo_dir: Path):
-    """Return (spec_path, kind) — kind is 'lock', 'yaml' or 'none'."""
-    lock_file = repo_dir / "conda-lock.yml"
+def _env_spec(repo_dir: Path, conda_exe: Path):
+    """Collect the available env specs: 'explicit', 'lock' and/or 'yaml'."""
     specs = {}
+ 
+    explicit = repo_dir / f"conda-{_conda_subdir(conda_exe)}.lock"
+    if explicit.exists():
+        specs["explicit"] = explicit
+ 
+    lock_file = repo_dir / "conda-lock.yml"
     if lock_file.exists():
         specs["lock"] = lock_file
+ 
     env_file = repo_dir / "environment.yml"
     if env_file.exists():
         specs["yaml"] = env_file
+ 
     return specs
 
 
@@ -317,12 +375,32 @@ def remove_env(conda_exe: Path, base: Path, env_name: str):
 
 def _build_env(conda_exe: Path, env_name: str, base: Path,
                specs: dict, repo_dir: Path) -> Path:
-    if "lock" in specs.keys():
+    """
+    Build the env, most-reproducible source first:
+        1. conda-<platform>.lock  → plain conda, no conda-lock needed
+        2. conda-lock.yml         → needs a working conda-lock
+        3. environment.yml        → re-solved, NOT reproducible
+    Returns the spec file that was actually used.
+    """
+    env_path = _env_dir(base, env_name)
+ 
+    if "explicit" in specs:
+        try:
+            step(f"Creating env '{env_name}' from {specs['explicit'].name}…")
+            run([conda_exe, "create", "-p", env_path,
+                 "--file", str(specs["explicit"]), "--yes"])
+            return specs["explicit"]
+        except Exception as e:
+            warn(f"Could not create env '{env_name}' from "
+                 f"{specs['explicit'].name}:\n   {e}")
+            if env_path.exists():
+                warn("Removing the partially created env…")
+                remove_env(conda_exe, base, env_name)
+ 
+    if "lock" in specs:
         try:
             step(f"Creating env '{env_name}' from {specs['lock'].name}…")
-            _ensure_conda_lock(conda_exe)
-            cl = _conda_lock_exe(conda_exe, base)
-            env_path = _env_dir(base, env_name)
+            cl = _ensure_conda_lock(conda_exe, base)
             run([cl, "install", "-p", env_path, str(specs["lock"])])
             return specs["lock"]
         except Exception as e:
@@ -331,15 +409,19 @@ def _build_env(conda_exe: Path, env_name: str, base: Path,
             if env_path.exists():
                 warn("Removing the partially created env…")
                 remove_env(conda_exe, base, env_name)
-    
-    if "yaml" in specs.keys():
+ 
+    if "yaml" in specs:
+        warn(f"Falling back to {specs['yaml'].name} — dependencies will be "
+             f"re-solved, so this env is NOT guaranteed to match the tested one.")
         step(f"Creating env '{env_name}' from {specs['yaml'].name}…")
         run([conda_exe, "env", "create", "-n", env_name, "-f", str(specs["yaml"])])
         return specs["yaml"]
  
-    err(f"Installation using either conda-lock.yml or environment.yml failed. It might be "
-        "due to the absence of the files or an error with conda manager.")
+    err(f"Could not create env '{env_name}': no usable conda-<platform>.lock, "
+        f"conda-lock.yml or environment.yml in {repo_dir.name}, or conda itself "
+        f"failed. Scroll up for the underlying error.")
     sys.exit(1)
+
 
 
 def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
@@ -351,14 +433,13 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
       • unchanged            → skip (fast path, unchanged behaviour)
       • changed / no stamp   → rebuild from scratch, or sync in place,
                                depending on ENV_UPDATE_POLICY / CLI flags
-
+ 
     """
-    specs = _env_spec(repo_dir)
-    digest_yaml = _sha256_file(specs["yaml"]) if "yaml" in specs else None
-    digest_lock = _sha256_file(specs["lock"]) if "lock" in specs else None
-
+    specs = _env_spec(repo_dir, conda_exe)
+    digests = [_sha256_file(f) for f in specs.values()]
+ 
     if env_exists(base, env_name):
-        if "yaml" not in specs.keys() and "lock" not in specs.keys():
+        if not specs:
             ok(f"Env '{env_name}' already exists and {repo_dir.name} has no "
                f"lock/environment file — skipping")
             return
@@ -366,7 +447,7 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
         else:
             recorded = _read_stamp(base, env_name).get("spec_sha256")
  
-            if recorded and (recorded == digest_yaml or recorded == digest_lock):
+            if recorded and recorded in digests:
                 ok(f"Env '{env_name}' is up to date with environment files — skipping")
                 return
             else:
