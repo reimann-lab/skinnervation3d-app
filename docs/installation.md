@@ -35,7 +35,7 @@ To be able to download the private repositories that are part of the software de
 
 ### macOS / Linux
 
-1. Download **`install.sh`** and **`install.py`** from the [GitHub repository](https://github.com/reimann-lab/skinnervation3d-app) and save them into the same folder
+1. Download the **`linux_mac_installer.zip`** from the [GitHub repository](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/linux_mac_installer.zip) and unzip the contents into the same folder.
 2. On Linux or macOS, open a terminal in that folder and run:
    ```bash
    bash install.sh
@@ -44,7 +44,7 @@ To be able to download the private repositories that are part of the software de
 
 ### Windows
 
-1. Download **`install.bat`** and **`install.py`** from the [GitHub repository](https://github.com/reimann-lab/skinnervation3d-app) and save them into the same folder
+1. Download **`windows_installer.zip`** from the [GitHub repository](https://github.com/reimann-lab/skinnervation3d-app/releases/latest/download/windows_installer.zip) and unzip the contents into the same folder.
 2. Double-click **`install.bat`**
    - If Windows shows a security warning, click **"Run anyway"**
    - If you get a permission error, right-click → **"Run as administrator"**
