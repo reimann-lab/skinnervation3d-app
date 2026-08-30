@@ -387,8 +387,8 @@ def _build_env(conda_exe: Path, env_name: str, base: Path,
     if "explicit" in specs:
         try:
             step(f"Creating env '{env_name}' from {specs['explicit'].name}…")
-            run([conda_exe, "create", "-p", env_path,
-                 "--file", str(specs["explicit"]), "--yes"])
+            run([conda_exe, "create", "--name", env_name,
+                 "--file", str(specs["explicit"])])
             return specs["explicit"]
         except Exception as e:
             warn(f"Could not create env '{env_name}' from "
@@ -469,9 +469,14 @@ def create_env(conda_exe: Path, env_name: str, repo_dir: Path, base: Path):
 def pip_install(conda_exe: Path, env_name: str, package_dir: Path):
     """pip install -e a local package into a conda env."""
     step(f"pip install -e {package_dir.name} → env '{env_name}'")
-    run([conda_exe, "run", "--no-capture-output",
-         "-n", env_name,
-         "pip", "install", "--no-cache-dir", "-e", str(package_dir)])
+    if env_name == "napari-crop":
+        run([conda_exe, "run", "--no-capture-output",
+             "-n", env_name,
+             "pip", "install", "--no-cache-dir", "-e", f"{package_dir}[napari]"])
+    else:
+        run([conda_exe, "run", "--no-capture-output",
+            "-n", env_name,
+            "pip", "install", "--no-cache-dir", "-e", str(package_dir)])
     ok(f"{package_dir.name} installed")
 
 
@@ -873,7 +878,7 @@ def main():
     default_install = Path.home() / "SkInnervation3D"
     install_dir = Path(ask(
         "Where should the software be installed (source code will be cloned here)? \nNote: "
-        "it is important to give a full filesystem path (e.g. C:/Users/JaneDoe). ",
+        "it is important to give a full filesystem path (e.g. C:\\Users\\JaneDoe). ",
         str(default_install),
     ))
 
